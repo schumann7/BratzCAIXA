@@ -1,3 +1,8 @@
+import 'package:bratz/screens/clients.dart';
+import 'package:bratz/screens/finances.dart';
+import 'package:bratz/screens/products.dart';
+import 'package:bratz/screens/settings.dart';
+import 'package:bratz/screens/system.dart';
 import 'package:flutter/material.dart';
 import 'package:bratz/components/header.dart';
 
@@ -30,10 +35,7 @@ class _DashboardBody extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF2B2B2B),
-            Color(0xFF1F1F1F),
-          ],
+          colors: [Color(0xFF2B2B2B), Color(0xFF1F1F1F)],
         ),
       ),
       child: LayoutBuilder(
@@ -55,7 +57,14 @@ class _DashboardBody extends StatelessWidget {
                           color: const Color(0xFF2E7DFF),
                           icon: Icons.desktop_windows,
                           label: 'Sistema',
-                          onTap: () {},
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => SystemScreen(),
+                              ),
+                            );
+                          },
                           big: true,
                         ),
                       ),
@@ -71,10 +80,20 @@ class _DashboardBody extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: _DashboardTile(
-                                    color: const Color(0xE6E6B23A), // amarelo mostarda
+                                    color: const Color(
+                                      0xE6E6B23A,
+                                    ), // amarelo mostarda
                                     icon: Icons.shopping_cart,
                                     label: 'Produtos',
-                                    onTap: () {},
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) => ProductsScreen(),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                                 const SizedBox(width: 24),
@@ -83,7 +102,15 @@ class _DashboardBody extends StatelessWidget {
                                     color: const Color(0xFF2ECC40), // verde
                                     icon: Icons.attach_money,
                                     label: 'Financeiro',
-                                    onTap: () {},
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) => FinancesScreen(),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ],
@@ -98,7 +125,14 @@ class _DashboardBody extends StatelessWidget {
                                     color: const Color(0xFF29C7F0), // ciano
                                     icon: Icons.group,
                                     label: 'Clientes',
-                                    onTap: () {},
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ClientsScreen(),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                                 const SizedBox(width: 24),
@@ -107,7 +141,15 @@ class _DashboardBody extends StatelessWidget {
                                     color: const Color(0xFFBEBEBE), // cinza
                                     icon: Icons.settings,
                                     label: 'Configurações',
-                                    onTap: () {},
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) => SettingsScreen(),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ],
@@ -154,18 +196,18 @@ class _DashboardTile extends StatelessWidget {
             color: color,
             borderRadius: BorderRadius.circular(12),
             boxShadow: const [
-              BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 4)),
+              BoxShadow(
+                color: Colors.black38,
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
             ],
           ),
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  color: Colors.white,
-                  size: big ? 72 : 48,
-                ),
+                Icon(icon, color: Colors.white, size: big ? 72 : 48),
                 const SizedBox(height: 12),
                 Text(
                   label,
