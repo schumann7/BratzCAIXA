@@ -17,6 +17,12 @@ class ClientsScreen extends StatelessWidget {
 class ClientsPageBody extends StatelessWidget {
   final TextEditingController _clientSearchController = TextEditingController();
 
+  List<Map<String, dynamic>> responseItems = [
+    {"name": "John Doe", "cpf": "000.000.000-00", "phone": "(00) 0000-0000"},
+    {"name": "John Doe", "cpf": "000.000.000-00", "phone": "(00) 0000-0000"},
+    {"name": "John Doe", "cpf": "000.000.000-00", "phone": "(00) 0000-0000"},
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -63,27 +69,142 @@ class ClientsPageBody extends StatelessWidget {
                       ),
                     ],
                   ),
+                  Expanded(child: SizedBox()),
+
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {},
+                        style: ButtonStyle(
+                          shape:
+                              WidgetStateProperty.resolveWith<OutlinedBorder?>((
+                                states,
+                              ) {
+                                return BeveledRectangleBorder(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(3),
+                                  ),
+                                );
+                              }),
+                          fixedSize: WidgetStateProperty.resolveWith<Size?>((
+                            states,
+                          ) {
+                            return Size(200, 75);
+                          }),
+                          backgroundColor:
+                              WidgetStateProperty.resolveWith<Color?>((
+                                Set<WidgetState> states,
+                              ) {
+                                return Color(0xFF36CDEB);
+                              }),
+                        ),
+                        child: Text(
+                          "+ Novo Cliente",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 50,),
+                      ElevatedButton(
+                        onPressed: () {},
+                        style: ButtonStyle(
+                          shape:
+                              WidgetStateProperty.resolveWith<OutlinedBorder?>((
+                                states,
+                              ) {
+                                return BeveledRectangleBorder(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(3),
+                                  ),
+                                );
+                              }),
+                          fixedSize: WidgetStateProperty.resolveWith<Size?>((
+                            states,
+                          ) {
+                            return Size(200, 75);
+                          }),
+                          backgroundColor:
+                              WidgetStateProperty.resolveWith<Color?>((
+                                Set<WidgetState> states,
+                              ) {
+                                return Color(0xFF36CDEB);
+                              }),
+                        ),
+                        child: Text(
+                          "- Remover Cliente",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
             Container(
-              width: 600,
+              width: 700,
               decoration: BoxDecoration(
                 color: Color(0xFF36CDEB),
-                borderRadius: BorderRadius.all(Radius.circular(15))
+                borderRadius: BorderRadius.all(Radius.circular(15)),
               ),
               child: Column(
-              children: [
-                Text(
-                    "Lista de Clientes",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Text(
+                      "Lista de Clientes",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white, fontSize: 26),
                     ),
                   ),
-              ],
-            )),
+
+                  Expanded(
+                    child: SizedBox(
+                      width: 800,
+                      child: DataTable(
+                        decoration: BoxDecoration(
+                          color: Color(0xFFFCFEF2),
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(15),
+                            bottomRight: Radius.circular(15),
+                          ),
+                        ),
+                        columns: [
+                          DataColumn(label: Text('Nome')),
+                          DataColumn(label: Text('CPF')),
+                          DataColumn(label: Text('Telefone')),
+                          DataColumn(label: Text('Ações')),
+                        ],
+                        rows:
+                            responseItems
+                                .map(
+                                  (item) => DataRow(
+                                    cells: [
+                                      DataCell(Text(item['name'])),
+                                      DataCell(Text(item['cpf'].toString())),
+                                      DataCell(Text(item['phone'])),
+                                      DataCell(
+                                        ElevatedButton(
+                                          onPressed: () {},
+                                          child: Text("Ação"),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                                .toList(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
