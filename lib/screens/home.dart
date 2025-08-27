@@ -42,123 +42,122 @@ class _DashboardBody extends StatelessWidget {
         builder: (context, constraints) {
           return Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: const EdgeInsets.all(50),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1100),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Bloco grande: Sistema
-                    Expanded(
-                      flex: 3,
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: _DashboardTile(
-                          color: const Color(0xFF2E7DFF),
-                          icon: Icons.desktop_windows,
-                          label: 'Sistema',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => SystemScreen(),
+                child: Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Bloco grande: Sistema
+                      Expanded(
+                        flex: 6,
+                          child: _DashboardTile(
+                            color: const Color(0xFF2E7DFF),
+                            icon: Icons.desktop_windows,
+                            label: 'Sistema',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => SystemScreen(),
+                                ),
+                              );
+                            },
+                            big: true,
+                          ),
+                      ),
+                      const SizedBox(width: 24),
+                      // Grade à direita 2x2
+                      Expanded(
+                        flex: 4,
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _DashboardTile(
+                                      color: const Color(
+                                        0xE6E6B23A,
+                                      ), // amarelo mostarda
+                                      icon: Icons.shopping_cart,
+                                      label: 'Produtos',
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (context) => ProductsScreen(),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 24),
+                                  Expanded(
+                                    child: _DashboardTile(
+                                      color: const Color(0xFF2ECC40), // verde
+                                      icon: Icons.attach_money,
+                                      label: 'Financeiro',
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (context) => FinancesScreen(),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ),
-                            );
-                          },
-                          big: true,
+                            ),
+                            const SizedBox(height: 24),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _DashboardTile(
+                                      color: const Color(0xFF29C7F0), // ciano
+                                      icon: Icons.group,
+                                      label: 'Clientes',
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ClientsScreen(),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 24),
+                                  Expanded(
+                                    child: _DashboardTile(
+                                      color: const Color(0xFFBEBEBE), // cinza
+                                      icon: Icons.settings,
+                                      label: 'Configurações',
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (context) => SettingsScreen(),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 24),
-                    // Grade à direita 2x2
-                    Expanded(
-                      flex: 4,
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: _DashboardTile(
-                                    color: const Color(
-                                      0xE6E6B23A,
-                                    ), // amarelo mostarda
-                                    icon: Icons.shopping_cart,
-                                    label: 'Produtos',
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => ProductsScreen(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 24),
-                                Expanded(
-                                  child: _DashboardTile(
-                                    color: const Color(0xFF2ECC40), // verde
-                                    icon: Icons.attach_money,
-                                    label: 'Financeiro',
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => FinancesScreen(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: _DashboardTile(
-                                    color: const Color(0xFF29C7F0), // ciano
-                                    icon: Icons.group,
-                                    label: 'Clientes',
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ClientsScreen(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 24),
-                                Expanded(
-                                  child: _DashboardTile(
-                                    color: const Color(0xFFBEBEBE), // cinza
-                                    icon: Icons.settings,
-                                    label: 'Configurações',
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => SettingsScreen(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
