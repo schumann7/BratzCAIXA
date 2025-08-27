@@ -18,6 +18,23 @@ class SistemPageBody extends StatelessWidget {
   final TextEditingController searchControllerName = TextEditingController();
   final TextEditingController searchControllerCode = TextEditingController();
 
+  List<Map<String, dynamic>> responseItems = [
+    {
+      "item": "banana",
+      "code": "123",
+      "description": "TextoTextoTextoTexto",
+      "value": "12,99",
+      "quantity": "3",
+    },
+    {
+      "item": "maça",
+      "code": "456",
+      "description": "TextoTextoTextoTexto",
+      "value": "5,49",
+      "quantity": "1",
+    },
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -48,113 +65,105 @@ class SistemPageBody extends StatelessWidget {
             ),
             SizedBox(width: 50),
             Expanded(
-              flex: 4,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  borderRadius: const BorderRadius.all(Radius.circular(12)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black45,
-                      blurRadius: 12,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: const BoxDecoration(
-                        color: const Color(0xFF2E7DFF),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          topRight: Radius.circular(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(12),
                         ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black45,
+                            blurRadius: 12,
+                            offset: Offset(0, 6),
+                          ),
+                        ],
                       ),
-                      child: const Text(
-                        'Lista de Produtos',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    // Cabeçalhos de coluna
-                    Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        // Removido o arredondamento aqui para evitar conflito visual
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          SizedBox(
-                            child: Text(
-                              'N° Item',
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
                             ),
-                          ),
-                          SizedBox(
-                            child: Text(
-                              'Código',
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                            decoration: const BoxDecoration(
+                              color: const Color(0xFF2E7DFF),
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(12),
+                                topRight: Radius.circular(12),
+                              ),
                             ),
-                          ),
-                          SizedBox(
-                            child: Text(
-                              'Descrição',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          SizedBox(
-                            child: Text(
-                              'Valor Unitário',
+                            child: const Text(
+                              'Lista de Produtos',
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                          SizedBox(
-                            child: Text(
-                              'Total',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                          // Cabeçalhos de coluna
+                          DataTable(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              // Removido o arredondamento aqui para evitar conflito visual
+                            ),
+                            columns: [
+                              DataColumn(label: Text('Item')),
+                              DataColumn(label: Text('Código')),
+                              DataColumn(label: Text('Descrição')),
+                              DataColumn(label: Text('Valor')),
+                              DataColumn(label: Text('Total')),
+                            ],
+                            rows:
+                                responseItems
+                                    .map(
+                                      (item) => DataRow(
+                                        cells: [
+                                          DataCell(Text(item['item'])),
+                                          DataCell(Text(item['code'])),
+                                          DataCell(Text(item['description'])),
+                                          DataCell(Text(item['value'])),
+                                          DataCell(Text('total')),
+                                        ],
+                                      ),
+                                    )
+                                    .toList(),
+                          ),
+                          const Divider(height: 1, thickness: 1),
+                          // Espaço de lista (placeholder)
+                          Expanded(
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFCFEF2),
+                                borderRadius: BorderRadius.only(
+                                  bottomLeft: Radius.circular(12),
+                                  bottomRight: Radius.circular(12),
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Nenhum produto carregado',
+                                  style: TextStyle(color: Colors.black54),
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Divider(height: 1, thickness: 1),
-                    // Espaço de lista (placeholder)
-                    Expanded(
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFCFEF2),
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(12),
-                            bottomRight: Radius.circular(12),
-                          ),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'Nenhum produto carregado',
-                            style: TextStyle(color: Colors.black54),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+
+                  _subtotal(),
+                  Row(children: [_receipt(), SizedBox(width: 20), _change()]),
+                ],
               ),
             ),
           ],
@@ -166,7 +175,7 @@ class SistemPageBody extends StatelessWidget {
   Widget _titleBar() {
     return Container(
       height: 44,
-      width: 800,
+      width: 700,
       decoration: BoxDecoration(
         color: const Color(0xFF2E7DFF),
         borderRadius: BorderRadius.circular(6),
@@ -285,7 +294,7 @@ class SistemPageBody extends StatelessWidget {
   Widget _productValue() {
     return Container(
       height: 108,
-      width: 300,
+      width: 200,
       decoration: BoxDecoration(
         color: const Color(0xFF2E7DFF),
         borderRadius: BorderRadius.circular(6),
@@ -317,6 +326,138 @@ class SistemPageBody extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _subtotal() {
+    return Expanded(
+      flex: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF2E7DFF),
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black45,
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.all(15),
+        margin: EdgeInsets.only(top: 20, left: 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Subtotal',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                letterSpacing: 1.0,
+              ),
+            ),
+            Text(
+              'R\$ 0,00',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 30,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _receipt() {
+    return Expanded(
+      child: Container(
+        width: 200,
+        decoration: BoxDecoration(
+          color: const Color(0xFF2E7DFF),
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black45,
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.all(15),
+        margin: EdgeInsets.only(top: 20, left: 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Recibo',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                letterSpacing: 1.0,
+              ),
+            ),
+            Text(
+              'R\$ 0,00',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 30,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _change() {
+    return Expanded(
+      child: Container(
+        width: 200,
+        decoration: BoxDecoration(
+          color: const Color(0xFF2E7DFF),
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black45,
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.all(15),
+        margin: EdgeInsets.only(top: 20, left: 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Troco',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                letterSpacing: 1.0,
+              ),
+            ),
+            Text(
+              'R\$ 0,00',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 30,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
