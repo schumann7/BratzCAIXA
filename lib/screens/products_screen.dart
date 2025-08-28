@@ -1,8 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:bratzcaixa/components/header.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_popup_card/flutter_popup_card.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:bratzcaixa/screens/login_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
+  const ProductsScreen({super.key});
+
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
 }
@@ -33,28 +38,126 @@ class ProductsPageBody extends StatefulWidget {
 }
 
 class _ProductsPageBodyState extends State<ProductsPageBody> {
+  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _itemController = TextEditingController();
+  final TextEditingController _brandController = TextEditingController(); // Novo
+  final TextEditingController _purchaseValueController = TextEditingController(); // Novo
+  final TextEditingController _saleValueController = TextEditingController(); // Novo
+  final TextEditingController _expirationDateController = TextEditingController(); // Novo
+
+  List<dynamic> _products = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProducts();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _itemController.dispose();
+    _brandController.dispose();
+    _purchaseValueController.dispose();
+    _saleValueController.dispose();
+    _expirationDateController.dispose();
+    super.dispose();
+  }
+  
+  // --- Funções de Requisição à API ---
+
+  Future<void> _fetchProducts({String? searchQuery}) async {
+    if (globalToken == null) {
+      _showError('Usuário não autenticado. Faça o login primeiro.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    final Uri url;
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      url = Uri.http('localhost:5000', '/bratz/products', {'item': searchQuery});
+    } else {
+      url = Uri.http('localhost:5000', '/bratz/products');
+    }
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $globalToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        setState(() {
+          _products = responseData['data']['products'] as List<dynamic>;
+          _isLoading = false;
+        });
+      } else {
+        _showError('Falha ao carregar produtos: ${response.statusCode}');
+      }
+    } catch (e) {
+      _showError('Ocorreu um erro de rede: $e');
+    }
+  }
+
+  Future<void> _createProduct() async {
+    if (globalToken == null) {
+      _showError('Usuário não autenticado.');
+      return;
+    }
+
+    final Map<String, dynamic> productData = {
+      'item': _itemController.text,
+      'brand': _brandController.text.isNotEmpty ? _brandController.text : null,
+      'purchase_value': double.tryParse(_purchaseValueController.text),
+      'sale_value': double.tryParse(_saleValueController.text),
+      'expiration_date': _expirationDateController.text.isNotEmpty ? _expirationDateController.text : null,
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:5000/bratz/products'),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'Bearer $globalToken',
+        },
+        body: jsonEncode(productData),
+      );
+
+      if (response.statusCode == 201) {
+        _showSuccess('Produto criado com sucesso!');
+        _fetchProducts(); // Atualiza a lista
+      } else {
+        final errorResponse = json.decode(response.body);
+        _showError('Erro ao criar produto: ${errorResponse['message']}');
+      }
+    } catch (e) {
+      _showError('Ocorreu um erro de rede: $e');
+    }
+  }
+  
+  void _showError(String message) {
+    setState(() {
+      _error = message;
+      _isLoading = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
-    List<Map<String, dynamic>> responseItems = [
-      {
-        "item": "banana",
-        "code": "123",
-        "description": "TextoTextoTextoTexto",
-        "value": "12,99",
-      },
-      {
-        "item": "maça",
-        "code": "456",
-        "description": "TextoTextoTextoTexto",
-        "value": "5,49",
-      },
-    ];
-    final TextEditingController searchController = TextEditingController();
-    final TextEditingController itemController = TextEditingController();
-    final TextEditingController descriptionController = TextEditingController();
-    final TextEditingController codeController = TextEditingController();
-    final TextEditingController valueController = TextEditingController();
-
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -87,27 +190,26 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
                     children: [
                       Expanded(
                         child: TextField(
-                          controller: searchController,
+                          controller: _searchController,
                           style: const TextStyle(color: Colors.black87),
                           decoration: const InputDecoration(
-                            hintText: 'Buscar por ID ou nome',
+                            hintText: 'Buscar por nome ou marca',
                             filled: true,
                             fillColor: Color(0xFFFCFEF2),
                             border: OutlineInputBorder(
                               borderSide: BorderSide.none,
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(8),
-                              ),
+                              borderRadius: BorderRadius.all(Radius.circular(8)),
                             ),
                             contentPadding: EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 14,
                             ),
                           ),
+                          onSubmitted: (value) => _fetchProducts(searchQuery: value),
                         ),
                       ),
                       IconButton(
-                        onPressed: () {},
+                        onPressed: () => _fetchProducts(searchQuery: _searchController.text),
                         icon: const Icon(
                           Icons.search,
                           color: Colors.white,
@@ -115,263 +217,8 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ProductsPageBody.mustardYellow,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          elevation: 6,
-                        ),
-                        onPressed: () {
-                          showPopupCard(
-                            context: context,
-                            builder: (context) {
-                              return PopupCard(
-                                elevation: 8,
-                                color: const Color.fromARGB(255, 245, 245, 245),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12.0),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: SizedBox(
-                                    width: 600,
-                                    height: 400,
-                                    child: Column(
-                                      children: [
-                                        const Text(
-                                          "Adicionar Novo Produto",
-                                          style: TextStyle(fontSize: 16),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            // Coluna dos textos
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.end,
-                                              children: const [
-                                                SizedBox(height: 18),
-                                                Text("Nome:"),
-                                                SizedBox(height: 40),
-                                                Text("Código:"),
-                                                SizedBox(height: 40),
-                                                Text("Descrição:"),
-                                                SizedBox(height: 40),
-                                                Text("Valor:"),
-                                              ],
-                                            ),
-                                            const SizedBox(width: 16),
-                                            // Coluna dos TextFields
-                                            Expanded(
-                                              child: Column(
-                                                children: [
-                                                  TextField(
-                                                    controller: itemController,
-                                                    style: const TextStyle(
-                                                      color: Colors.black87,
-                                                    ),
-                                                    decoration: const InputDecoration(
-                                                      hintText:
-                                                          'Nome do produto',
-                                                      filled: true,
-                                                      fillColor: Colors.white,
-                                                      border: OutlineInputBorder(
-                                                        borderSide:
-                                                            BorderSide.none,
-                                                        borderRadius:
-                                                            BorderRadius.all(
-                                                              Radius.circular(
-                                                                8,
-                                                              ),
-                                                            ),
-                                                      ),
-                                                      contentPadding:
-                                                          EdgeInsets.symmetric(
-                                                            horizontal: 12,
-                                                            vertical: 14,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 12),
-                                                  TextField(
-                                                    controller: codeController,
-                                                    style: const TextStyle(
-                                                      color: Colors.black87,
-                                                    ),
-                                                    decoration: const InputDecoration(
-                                                      hintText:
-                                                          'Código do produto',
-                                                      filled: true,
-                                                      fillColor: Colors.white,
-                                                      border: OutlineInputBorder(
-                                                        borderSide:
-                                                            BorderSide.none,
-                                                        borderRadius:
-                                                            BorderRadius.all(
-                                                              Radius.circular(
-                                                                8,
-                                                              ),
-                                                            ),
-                                                      ),
-                                                      contentPadding:
-                                                          EdgeInsets.symmetric(
-                                                            horizontal: 12,
-                                                            vertical: 14,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 12),
-                                                  TextField(
-                                                    controller:
-                                                        descriptionController,
-                                                    style: const TextStyle(
-                                                      color: Colors.black87,
-                                                    ),
-                                                    decoration: const InputDecoration(
-                                                      hintText:
-                                                          'Descrição do produto',
-                                                      filled: true,
-                                                      fillColor: Colors.white,
-                                                      border: OutlineInputBorder(
-                                                        borderSide:
-                                                            BorderSide.none,
-                                                        borderRadius:
-                                                            BorderRadius.all(
-                                                              Radius.circular(
-                                                                8,
-                                                              ),
-                                                            ),
-                                                      ),
-                                                      contentPadding:
-                                                          EdgeInsets.symmetric(
-                                                            horizontal: 12,
-                                                            vertical: 14,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 12),
-                                                  TextField(
-                                                    controller: valueController,
-                                                    style: const TextStyle(
-                                                      color: Colors.black87,
-                                                    ),
-                                                    decoration: const InputDecoration(
-                                                      hintText:
-                                                          'Valor do produto',
-                                                      filled: true,
-                                                      fillColor: Colors.white,
-                                                      border: OutlineInputBorder(
-                                                        borderSide:
-                                                            BorderSide.none,
-                                                        borderRadius:
-                                                            BorderRadius.all(
-                                                              Radius.circular(
-                                                                8,
-                                                              ),
-                                                            ),
-                                                      ),
-                                                      contentPadding:
-                                                          EdgeInsets.symmetric(
-                                                            horizontal: 12,
-                                                            vertical: 14,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        SizedBox(height: 50),
-                                        ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: ProductsPageBody
-                                                .mustardYellow
-                                                .withOpacity(0.85),
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 20,
-                                              vertical: 16,
-                                            ),
-                                            textStyle: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                            elevation: 6,
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              responseItems.add({
-                                                "item": itemController.text,
-                                                "code": codeController.text,
-                                                "description":
-                                                    descriptionController.text,
-                                                "value": valueController.text,
-                                              });
-                                            });
-                                            print(responseItems);
-                                            setState(() {
-                                              responseItems;
-                                            });
-                                          },
-                                          child: const Text('Adicionar'),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                            offset: const Offset(0, 0),
-                            alignment: Alignment.center,
-                            useSafeArea: true,
-                            dimBackground: true,
-                          );
-                        },
-                        child: const Text('+ Novo Produto'),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ProductsPageBody.mustardYellow
-                              .withOpacity(0.85),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          elevation: 6,
-                        ),
-                        onPressed: () {},
-                        child: const Text('- Remover Produto'),
-                      ),
-                    ],
-                  ),
+                  )
+                  
                 ],
               ),
             ),
@@ -419,34 +266,30 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
                         ),
                       ),
                     ),
-                    // Cabeçalhos de coluna
+                    // Tabela de dados
                     Expanded(
-                      child: StatefulBuilder(
-                        builder: (context, setStateTable) {
-                          return DataTable(
-                            decoration: BoxDecoration(color: Colors.white),
-                            columns: [
-                              DataColumn(label: Text('Item')),
-                              DataColumn(label: Text('Código')),
-                              DataColumn(label: Text('Descrição')),
-                              DataColumn(label: Text('Valor')),
-                            ],
-                            rows:
-                                responseItems
-                                    .map(
-                                      (item) => DataRow(
-                                        cells: [
-                                          DataCell(Text(item['item'])),
-                                          DataCell(Text(item['code'])),
-                                          DataCell(Text(item['description'])),
-                                          DataCell(Text(item['value'])),
-                                        ],
-                                      ),
-                                    )
-                                    .toList(),
-                          );
-                        },
-                      ),
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator(color: ProductsPageBody.mustardYellow))
+                          : _error != null
+                          ? Center(child: Text(_error!, style: const TextStyle(color: Colors.black54)))
+                          : DataTable(
+                              columns: const [
+                                DataColumn(label: Text('Item')),
+                                DataColumn(label: Text('Marca')),
+                                DataColumn(label: Text('Preço')),
+                                DataColumn(label: Text('Validade')),
+                              ],
+                              rows: _products.map<DataRow>((product) {
+                                return DataRow(
+                                  cells: [
+                                    DataCell(Text(product['item'] ?? 'N/A')),
+                                    DataCell(Text(product['brand'] ?? 'N/A')),
+                                    DataCell(Text(product['sale_value']?.toString() ?? 'N/A')),
+                                    DataCell(Text(product['expiration_date'] ?? 'N/A')),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
                     ),
                   ],
                 ),

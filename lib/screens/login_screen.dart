@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:bratzcaixa/services/auth_service.dart';
 
-// Variável global para o token (para fins de demonstração)
 String? globalToken;
 
 class LoginScreen extends StatefulWidget {
@@ -75,14 +74,13 @@ class LoginScreenState extends State<LoginScreen> {
                 ],
               ),
               child: Column(
-                mainAxisSize: MainAxisSize.min, // Faz o Column ocupar o mínimo de espaço vertical
+                mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  // NOVO: Sua logo Bratz aqui
                   Image.asset(
-                    'assets/logo-bratz.png', // Caminho para sua imagem
-                    height: 100, // Ajuste a altura conforme necessário
+                    'assets/logo-bratz.png',
+                    height: 100,
                   ),
                   const SizedBox(height: 48.0),
                   TextField(
