@@ -27,41 +27,62 @@ class ClientsPageBody extends StatefulWidget {
 }
 
 class _ClientsPageBodyState extends State<ClientsPageBody> {
-  // O controlador do campo de busca deve ser gerenciado pelo estado
   final TextEditingController _clientSearchController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _cpfController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
 
-  // Estado para os dados da API
   List<dynamic> _clients = [];
   bool _isLoading = true;
   String? _error;
+  
+  // NOVO: Estado para rastrear o cliente selecionado
+  int? _selectedClientId;
+  String? _selectedClientName;
 
   @override
   void initState() {
     super.initState();
-    // Inicia a requisição assim que a tela é criada
     _fetchClients();
   }
 
   @override
   void dispose() {
-    // Importante para evitar vazamentos de memória
     _clientSearchController.dispose();
+    _nameController.dispose();
+    _cpfController.dispose();
+    _phoneController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchClients() async {
-    // Adiciona o token na requisição
+  // --- Funções de Requisição à API ---
+
+  Future<void> _fetchClients({String? searchQuery}) async {
     if (globalToken == null) {
-      setState(() {
-        _error = 'Usuário não autenticado. Faça o login primeiro.';
-        _isLoading = false;
-      });
+      _showError('Usuário não autenticado. Faça o login primeiro.');
       return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      // Limpa a seleção ao recarregar a lista
+      _selectedClientId = null;
+      _selectedClientName = null;
+    });
+
+    final Uri url;
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      url = Uri.http('localhost:5000', '/bratz/clients', {'q': searchQuery});
+    } else {
+      url = Uri.http('localhost:5000', '/bratz/clients');
     }
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5000/bratz/clients'),
+        url,
         headers: {
           'Authorization': 'Bearer $globalToken',
         },
@@ -74,17 +95,175 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
           _isLoading = false;
         });
       } else {
-        setState(() {
-          _error = 'Falha ao carregar clientes: ${response.statusCode}';
-          _isLoading = false;
-        });
+        _showError('Falha ao carregar clientes: ${response.statusCode}');
       }
     } catch (e) {
-      setState(() {
-        _error = 'Ocorreu um erro de rede: $e';
-        _isLoading = false;
-      });
+      _showError('Ocorreu um erro de rede: $e');
     }
+  }
+
+  Future<void> _createClient() async {
+    if (globalToken == null) {
+      _showError('Usuário não autenticado.');
+      return;
+    }
+
+    final Map<String, dynamic> clientData = {
+      'name': _nameController.text,
+      'cpf': _cpfController.text,
+      'phone': _phoneController.text.isEmpty ? null : _phoneController.text,
+      'notes': _notesController.text.isEmpty ? null : _notesController.text,
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:5000/bratz/clients'),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'Bearer $globalToken',
+        },
+        body: jsonEncode(clientData),
+      );
+
+      if (response.statusCode == 201) {
+        _showSuccess('Cliente criado com sucesso!');
+        _fetchClients();
+      } else {
+        final errorResponse = json.decode(response.body);
+        _showError('Erro ao criar cliente: ${errorResponse['message']}');
+      }
+    } catch (e) {
+      _showError('Ocorreu um erro de rede: $e');
+    }
+  }
+
+  Future<void> _removeClient(int clientId) async {
+    if (globalToken == null) {
+      _showError('Usuário não autenticado.');
+      return;
+    }
+
+    try {
+      final response = await http.delete(
+        Uri.parse('http://localhost:5000/bratz/clients/$clientId'),
+        headers: {
+          'Authorization': 'Bearer $globalToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        _showSuccess('Cliente removido com sucesso!');
+        _fetchClients();
+      } else {
+        final errorResponse = json.decode(response.body);
+        _showError('Erro ao remover cliente: ${errorResponse['message']}');
+      }
+    } catch (e) {
+      _showError('Ocorreu um erro de rede: $e');
+    }
+  }
+
+  // --- Funções Auxiliares de UI ---
+
+  void _showError(String message) {
+    setState(() {
+      _error = message;
+      _isLoading = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showCreateClientDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Novo Cliente"),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(labelText: 'Nome'),
+                ),
+                TextField(
+                  controller: _cpfController,
+                  decoration: const InputDecoration(labelText: 'CPF'),
+                ),
+                TextField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(labelText: 'Telefone (Opcional)'),
+                ),
+                TextField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(labelText: 'Observações (Opcional)'),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("Cancelar"),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _nameController.clear();
+                _cpfController.clear();
+                _phoneController.clear();
+                _notesController.clear();
+              },
+            ),
+            ElevatedButton(
+              child: const Text("Salvar"),
+              onPressed: () {
+                if (_cpfController.text.length < 11) {
+                  _showSuccess('CPF inválido. Deve ter 11 dígitos.');
+                } else {
+                  _createClient();
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showConfirmationDialog() {
+    // NOVO: Lógica do diálogo de confirmação
+    if (_selectedClientId == null) {
+      _showSuccess('Selecione um cliente para remover.');
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Confirmar Remoção"),
+          content: Text("Tem certeza que deseja remover o cliente $_selectedClientName?"),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("Cancelar"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              child: const Text("Confirmar"),
+              onPressed: () {
+                _removeClient(_selectedClientId!);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -104,6 +283,7 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
             Expanded(
               flex: 2,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     "Clientes Frequentes",
@@ -114,6 +294,7 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
                       fontSize: 26,
                     ),
                   ),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -123,11 +304,20 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
                             hintText: "Buscar por nome, CPF ou telefone",
                             filled: true,
                             fillColor: Color(0xFFFCFEF2),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(Radius.circular(5.0)),
+                                borderSide: BorderSide.none
+                            ),
                           ),
+                          onSubmitted: (value) {
+                             _fetchClients(searchQuery: value);
+                          },
                         ),
                       ),
                       IconButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          _fetchClients(searchQuery: _clientSearchController.text);
+                        },
                         icon: const Icon(Icons.search, color: Colors.white, size: 30),
                       ),
                     ],
@@ -136,7 +326,7 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
                   Row(
                     children: [
                       ElevatedButton(
-                        onPressed: () {},
+                        onPressed: _showCreateClientDialog,
                         style: ButtonStyle(
                           shape: WidgetStateProperty.resolveWith<OutlinedBorder?>((states) {
                             return const BeveledRectangleBorder(
@@ -161,7 +351,7 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
                       ),
                       const SizedBox(width: 50,),
                       ElevatedButton(
-                        onPressed: () {},
+                        onPressed: _showConfirmationDialog, // Chamada para a nova função
                         style: ButtonStyle(
                           shape: WidgetStateProperty.resolveWith<OutlinedBorder?>((states) {
                             return const BeveledRectangleBorder(
@@ -209,7 +399,6 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
                   Expanded(
                     child: SizedBox(
                       width: 800,
-                      // NOVO: Lógica para mostrar o estado da requisição
                       child: _isLoading
                           ? const Center(child: CircularProgressIndicator(color: Colors.white,))
                           : _error != null
@@ -229,14 +418,30 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
                                 DataColumn(label: Text('Ações')),
                               ],
                               rows: _clients.map<DataRow>((client) {
+                                final isSelected = _selectedClientId == client['id'];
                                 return DataRow(
+                                  color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+                                    if (isSelected) {
+                                      return Colors.grey[500];
+                                    }
+                                    return null;
+                                  }),
+                                  selected: isSelected,
+                                  onSelectChanged: (selected) {
+                                    setState(() {
+                                      _selectedClientId = selected! ? client['id'] as int? : null;
+                                      _selectedClientName = selected ? client['name'] as String? : null;
+                                    });
+                                  },
                                   cells: [
                                     DataCell(Text(client['name'] ?? 'N/A')),
                                     DataCell(Text(client['cpf'] ?? 'N/A')),
                                     DataCell(Text(client['phone'] ?? 'N/A')),
                                     DataCell(
                                       ElevatedButton(
-                                        onPressed: () {},
+                                        onPressed: () {
+                                          _showSuccess('Ação no cliente ${client['name']}');
+                                        },
                                         child: const Text("Ação"),
                                       ),
                                     ),
