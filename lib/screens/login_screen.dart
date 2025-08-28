@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:bratzcaixa/services/auth_service.dart';
 
+// Variável global para o token (para fins de demonstração)
+String? globalToken;
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -46,45 +49,96 @@ class LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Login'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 16.0),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: 'Senha',
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 32.0),
-            // Botão de login
-            _isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: _handleLogin,
-                    child: const Text('Entrar'),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF2B2B2B), Color(0xFF1F1F1F)],
+          ),
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Container(
+              // NOVO: Container branco ao redor do conteúdo
+              padding: const EdgeInsets.all(32.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black,
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
                   ),
-          ],
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min, // Faz o Column ocupar o mínimo de espaço vertical
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  // NOVO: Sua logo Bratz aqui
+                  Image.asset(
+                    'assets/logo-bratz.png', // Caminho para sua imagem
+                    height: 100, // Ajuste a altura conforme necessário
+                  ),
+                  const SizedBox(height: 48.0),
+                  TextField(
+                    controller: _emailController,
+                    decoration: InputDecoration(
+                      labelText: 'Email',
+                      filled: true,
+                      fillColor: Colors.grey[200], // Cor de fundo mais suave
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      labelStyle: TextStyle(color: Colors.grey[700]),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextField(
+                    controller: _passwordController,
+                    decoration: InputDecoration(
+                      labelText: 'Senha',
+                      filled: true,
+                      fillColor: Colors.grey[200], // Cor de fundo mais suave
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      labelStyle: TextStyle(color: Colors.grey[700]),
+                    ),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 32.0),
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator(color: Color(0xFF36CDEB)))
+                      : ElevatedButton(
+                          onPressed: _handleLogin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF36CDEB),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 18.0,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          child: const Text('Entrar'),
+                        ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
-
-// Variável global para o token (para fins de demonstração)
-String? globalToken;

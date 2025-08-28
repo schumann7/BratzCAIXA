@@ -440,9 +440,9 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
                                     DataCell(
                                       ElevatedButton(
                                         onPressed: () {
-                                          _showSuccess('Ação no cliente ${client['name']}');
+                                          _showSuccess('Aplicado o desconto do cliente ${client['name']}');
                                         },
-                                        child: const Text("Ação"),
+                                        child: const Text("Desconto"),
                                       ),
                                     ),
                                   ],
