@@ -1,10 +1,10 @@
-import 'package:bratz/screens/clients.dart';
-import 'package:bratz/screens/finances.dart';
-import 'package:bratz/screens/products.dart';
-import 'package:bratz/screens/settings.dart';
-import 'package:bratz/screens/system.dart';
+import 'package:bratzcaixa/screens/clients_screen.dart';
+import 'package:bratzcaixa/screens/finances_screen.dart';
+import 'package:bratzcaixa/screens/products_screen.dart';
+import 'package:bratzcaixa/screens/settings_screen.dart';
+import 'package:bratzcaixa/screens/system_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:bratz/components/header.dart';
+import 'package:bratzcaixa/components/header.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});

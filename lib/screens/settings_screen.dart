@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:bratz/components/header.dart';
+import 'package:bratzcaixa/components/header.dart';
 
 const Color kPanelBg = Color(0xFFD9D9D9);
 const Color kLabelColor = Colors.white;

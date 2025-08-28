@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:bratz/components/header.dart';
+import 'package:bratzcaixa/components/header.dart';
 
 class FinancesScreen extends StatefulWidget {
   const FinancesScreen({super.key});

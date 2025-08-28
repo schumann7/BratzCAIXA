@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
-import 'screens/home.dart';
+import 'package:bratzcaixa/screens/login_screen.dart';
+import 'package:bratzcaixa/screens/home_screen.dart';
+import 'package:bratzcaixa/screens/clients_screen.dart';
+import 'package:bratzcaixa/screens/finances_screen.dart';
+import 'package:bratzcaixa/screens/products_screen.dart';
+import 'package:bratzcaixa/screens/settings_screen.dart';
+import 'package:bratzcaixa/screens/system_screen.dart';
 
 void main() {
   runApp(const BratzApp());
@@ -16,7 +22,16 @@ class BratzApp extends StatelessWidget {
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: ThemeMode.light,
-      home: const DashboardPage(),
+      initialRoute: '/login',
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/dashboard': (context) => const DashboardPage(),
+        '/clients': (context) => ClientsScreen(),
+        '/finances': (context) => FinancesScreen(),
+        '/products': (context) => ProductsScreen(),
+        '/settings': (context) => SettingsScreen(),
+        '/system': (context) => SystemScreen(),
+      },
     );
   }
 }
@@ -33,7 +48,7 @@ ThemeData darkTheme = ThemeData(
     labelMedium: TextStyle(color: Colors.white),
     labelLarge: TextStyle(color: Colors.white),
   ),
-  hintColor: Colors.white
+  hintColor: Colors.white,
 );
 
 ThemeData lightTheme = ThemeData(
@@ -48,5 +63,5 @@ ThemeData lightTheme = ThemeData(
     labelMedium: TextStyle(color: Colors.black),
     labelLarge: TextStyle(color: Colors.black),
   ),
-  hintColor: Colors.black
+  hintColor: Colors.black,
 );

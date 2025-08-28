@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:bratz/components/header.dart';
+import 'package:bratzcaixa/components/header.dart';
 import 'package:flutter_popup_card/flutter_popup_card.dart';
 
 class ProductsScreen extends StatefulWidget {
