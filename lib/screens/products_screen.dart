@@ -1,6 +1,5 @@
 import 'package:bratzcaixa/components/header.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_popup_card/flutter_popup_card.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:bratzcaixa/screens/login_screen.dart';
@@ -107,52 +106,12 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
       _showError('Ocorreu um erro de rede: $e');
     }
   }
-
-  Future<void> _createProduct() async {
-    if (globalToken == null) {
-      _showError('Usuário não autenticado.');
-      return;
-    }
-
-    final Map<String, dynamic> productData = {
-      'item': _itemController.text,
-      'brand': _brandController.text.isNotEmpty ? _brandController.text : null,
-      'purchase_value': double.tryParse(_purchaseValueController.text),
-      'sale_value': double.tryParse(_saleValueController.text),
-      'expiration_date': _expirationDateController.text.isNotEmpty ? _expirationDateController.text : null,
-    };
-
-    try {
-      final response = await http.post(
-        Uri.parse('http://localhost:5000/bratz/products'),
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Bearer $globalToken',
-        },
-        body: jsonEncode(productData),
-      );
-
-      if (response.statusCode == 201) {
-        _showSuccess('Produto criado com sucesso!');
-        _fetchProducts(); // Atualiza a lista
-      } else {
-        final errorResponse = json.decode(response.body);
-        _showError('Erro ao criar produto: ${errorResponse['message']}');
-      }
-    } catch (e) {
-      _showError('Ocorreu um erro de rede: $e');
-    }
-  }
   
   void _showError(String message) {
     setState(() {
       _error = message;
       _isLoading = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
@@ -230,7 +189,7 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
               flex: 4,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white,
                   borderRadius: const BorderRadius.all(Radius.circular(12)),
                   boxShadow: const [
                     BoxShadow(
