@@ -1,26 +1,16 @@
 import 'package:bratzcaixa/components/header.dart';
+import 'package:bratzcaixa/services/api_service.dart';
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:bratzcaixa/screens/login_screen.dart';
 
-class ProductsScreen extends StatefulWidget {
+class ProductsScreen extends StatelessWidget {
   const ProductsScreen({super.key});
 
   @override
-  State<ProductsScreen> createState() => _ProductsScreenState();
-}
-
-class _ProductsScreenState extends State<ProductsScreen> {
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       body: SafeArea(
         child: Column(
-          children: [
-            const HeaderBar(),
-            const Expanded(child: ProductsPageBody()),
-          ],
+          children: [HeaderBar(), Expanded(child: ProductsPageBody())],
         ),
       ),
     );
@@ -37,16 +27,20 @@ class ProductsPageBody extends StatefulWidget {
 }
 
 class _ProductsPageBodyState extends State<ProductsPageBody> {
+  final ApiService _apiService = ApiService();
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _itemController = TextEditingController();
-  final TextEditingController _brandController = TextEditingController(); // Novo
-  final TextEditingController _purchaseValueController = TextEditingController(); // Novo
-  final TextEditingController _saleValueController = TextEditingController(); // Novo
-  final TextEditingController _expirationDateController = TextEditingController(); // Novo
+  final TextEditingController _brandController = TextEditingController();
+  final TextEditingController _purchaseValueController =
+      TextEditingController();
+  final TextEditingController _saleValueController = TextEditingController();
+  final TextEditingController _expirationDateController =
+      TextEditingController();
 
   List<dynamic> _products = [];
   bool _isLoading = true;
   String? _error;
+  int? _selectedProductId;
 
   @override
   void initState() {
@@ -64,55 +58,178 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
     _expirationDateController.dispose();
     super.dispose();
   }
-  
-  // --- Funções de Requisição à API ---
 
   Future<void> _fetchProducts({String? searchQuery}) async {
-    if (globalToken == null) {
-      _showError('Usuário não autenticado. Faça o login primeiro.');
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _error = null;
+      _selectedProductId = null;
     });
 
-    final Uri url;
-    if (searchQuery != null && searchQuery.isNotEmpty) {
-      url = Uri.http('localhost:5000', '/bratz/products', {'item': searchQuery});
-    } else {
-      url = Uri.http('localhost:5000', '/bratz/products');
-    }
-
     try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $globalToken',
-        },
+      final productsData = await _apiService.fetchProducts(
+        searchQuery: searchQuery,
       );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        setState(() {
-          _products = responseData['data']['products'] as List<dynamic>;
-          _isLoading = false;
-        });
-      } else {
-        _showError('Falha ao carregar produtos: ${response.statusCode}');
-      }
+      if (!mounted) return;
+      setState(() {
+        _products = productsData;
+        _isLoading = false;
+      });
     } catch (e) {
-      _showError('Ocorreu um erro de rede: $e');
+      if (!mounted) return;
+      _showError(e.toString());
     }
   }
-  
+
+  Future<void> _createProduct() async {
+    final productData = {
+      'item': _itemController.text,
+      'brand': _brandController.text.isEmpty ? null : _brandController.text,
+      'purchase_value': double.tryParse(_purchaseValueController.text),
+      'sale_value': double.tryParse(_saleValueController.text),
+      'expiration_date':
+          _expirationDateController.text.isEmpty
+              ? null
+              : _expirationDateController.text,
+    };
+
+    try {
+      await _apiService.createProduct(productData);
+      _showSuccess('Produto criado com sucesso!');
+      _clearForm();
+      _fetchProducts();
+    } catch (e) {
+      _showError(e.toString());
+    }
+  }
+
+  Future<void> _deleteProduct(int productId) async {
+    try {
+      await _apiService.deleteProduct(productId);
+      _showSuccess('Produto removido com sucesso!');
+      _fetchProducts();
+    } catch (e) {
+      _showError(e.toString());
+    }
+  }
+
   void _showError(String message) {
+    if (!mounted) return;
     setState(() {
       _error = message;
       _isLoading = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showSuccess(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _clearForm() {
+    _itemController.clear();
+    _brandController.clear();
+    _purchaseValueController.clear();
+    _saleValueController.clear();
+    _expirationDateController.clear();
+  }
+
+  void _showCreateProductDialog() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Novo Produto'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _itemController,
+                    decoration: const InputDecoration(labelText: 'Item*'),
+                  ),
+                  TextField(
+                    controller: _brandController,
+                    decoration: const InputDecoration(labelText: 'Marca'),
+                  ),
+                  TextField(
+                    controller: _purchaseValueController,
+                    decoration: const InputDecoration(
+                      labelText: 'Valor de Compra',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextField(
+                    controller: _saleValueController,
+                    decoration: const InputDecoration(
+                      labelText: 'Valor de Venda*',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextField(
+                    controller: _expirationDateController,
+                    decoration: const InputDecoration(
+                      labelText: 'Validade (DD-MM-AAAA)',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (_itemController.text.isEmpty ||
+                      _saleValueController.text.isEmpty) {
+                    _showError('Item e Valor de Venda são obrigatórios.');
+                  } else {
+                    _createProduct();
+                    Navigator.of(context).pop();
+                  }
+                },
+                child: const Text('Salvar'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog() {
+    if (_selectedProductId == null) {
+      _showError('Nenhum produto selecionado para remover.');
+      return;
+    }
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Confirmar Remoção'),
+            content: const Text(
+              'Tem certeza que deseja remover o produto selecionado?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  _deleteProduct(_selectedProductId!);
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Confirmar'),
+              ),
+            ],
+          ),
+    );
   }
 
   @override
@@ -130,7 +247,6 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Coluna esquerda: Título, busca e botões
             Expanded(
               flex: 2,
               child: Column(
@@ -157,18 +273,24 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
                             fillColor: Color(0xFFFCFEF2),
                             border: OutlineInputBorder(
                               borderSide: BorderSide.none,
-                              borderRadius: BorderRadius.all(Radius.circular(8)),
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(8),
+                              ),
                             ),
                             contentPadding: EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 14,
                             ),
                           ),
-                          onSubmitted: (value) => _fetchProducts(searchQuery: value),
+                          onSubmitted:
+                              (value) => _fetchProducts(searchQuery: value),
                         ),
                       ),
                       IconButton(
-                        onPressed: () => _fetchProducts(searchQuery: _searchController.text),
+                        onPressed:
+                            () => _fetchProducts(
+                              searchQuery: _searchController.text,
+                            ),
                         icon: const Icon(
                           Icons.search,
                           color: Colors.white,
@@ -176,15 +298,26 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
                         ),
                       ),
                     ],
-                  )
-                  
+                  ),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: _showCreateProductDialog,
+                        child: const Text('+ Novo Produto'),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: _showDeleteConfirmationDialog,
+                        child: const Text('- Remover Produto'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
-
             const SizedBox(width: 24),
-
-            // Painel de listagem à direita
             Expanded(
               flex: 4,
               child: Container(
@@ -202,7 +335,6 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Cabeçalho amarelo
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -225,30 +357,68 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
                         ),
                       ),
                     ),
-                    // Tabela de dados
                     Expanded(
-                      child: _isLoading
-                          ? const Center(child: CircularProgressIndicator(color: ProductsPageBody.mustardYellow))
-                          : _error != null
-                          ? Center(child: Text(_error!, style: const TextStyle(color: Colors.black54)))
-                          : DataTable(
-                              columns: const [
-                                DataColumn(label: Text('Item')),
-                                DataColumn(label: Text('Marca')),
-                                DataColumn(label: Text('Preço')),
-                                DataColumn(label: Text('Validade')),
-                              ],
-                              rows: _products.map<DataRow>((product) {
-                                return DataRow(
-                                  cells: [
-                                    DataCell(Text(product['item'] ?? 'N/A')),
-                                    DataCell(Text(product['brand'] ?? 'N/A')),
-                                    DataCell(Text(product['sale_value']?.toString() ?? 'N/A')),
-                                    DataCell(Text(product['expiration_date'] ?? 'N/A')),
+                      child:
+                          _isLoading
+                              ? const Center(
+                                child: CircularProgressIndicator(
+                                  color: ProductsPageBody.mustardYellow,
+                                ),
+                              )
+                              : _error != null
+                              ? Center(
+                                child: Text(
+                                  _error!,
+                                  style: const TextStyle(color: Colors.black54),
+                                ),
+                              )
+                              : SingleChildScrollView(
+                                child: DataTable(
+                                  columns: const [
+                                    DataColumn(label: Text('Item')),
+                                    DataColumn(label: Text('Marca')),
+                                    DataColumn(label: Text('Preço')),
+                                    DataColumn(label: Text('Validade')),
                                   ],
-                                );
-                              }).toList(),
-                            ),
+                                  rows:
+                                      _products.map<DataRow>((product) {
+                                        return DataRow(
+                                          selected:
+                                              _selectedProductId ==
+                                              product['id'],
+                                          onSelectChanged: (isSelected) {
+                                            setState(() {
+                                              if (isSelected ?? false) {
+                                                _selectedProductId =
+                                                    product['id'];
+                                              } else {
+                                                _selectedProductId = null;
+                                              }
+                                            });
+                                          },
+                                          cells: [
+                                            DataCell(
+                                              Text(product['item'] ?? 'N/A'),
+                                            ),
+                                            DataCell(
+                                              Text(product['brand'] ?? 'N/A'),
+                                            ),
+                                            DataCell(
+                                              Text(
+                                                'R\$ ${product['sale_value']?.toStringAsFixed(2) ?? 'N/A'}',
+                                              ),
+                                            ),
+                                            DataCell(
+                                              Text(
+                                                product['expiration_date'] ??
+                                                    'N/A',
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      }).toList(),
+                                ),
+                              ),
                     ),
                   ],
                 ),
