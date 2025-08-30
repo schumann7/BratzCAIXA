@@ -1,6 +1,10 @@
+import 'package:bratzcaixa/components/client_action_buttons.dart';
+import 'package:bratzcaixa/components/client_list.dart';
+import 'package:bratzcaixa/components/client_search_header.dart';
 import 'package:bratzcaixa/components/header.dart';
 import 'package:bratzcaixa/services/api_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ClientsScreen extends StatelessWidget {
   const ClientsScreen({super.key});
@@ -77,18 +81,19 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
     }
   }
 
-  Future<void> _createClient() async {
+  Future<void> _createClient({required Map<String, double> discounts}) async {
     final Map<String, dynamic> clientData = {
       'name': _nameController.text,
       'cpf': _cpfController.text,
       'phone': _phoneController.text.isEmpty ? null : _phoneController.text,
       'notes': _notesController.text.isEmpty ? null : _notesController.text,
+      'discounts': discounts,
     };
 
     try {
       await _apiService.createClient(clientData);
       _showSuccess('Cliente criado com sucesso!');
-      _fetchClients(); // Recarrega a lista
+      _fetchClients();
     } catch (e) {
       _showError(e.toString());
     }
@@ -98,7 +103,7 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
     try {
       await _apiService.deleteClient(clientId);
       _showSuccess('Cliente removido com sucesso!');
-      _fetchClients(); // Recarrega a lista
+      _fetchClients();
     } catch (e) {
       _showError(e.toString());
     }
@@ -123,62 +128,141 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
   }
 
   void _showCreateClientDialog() {
-    // O corpo desta função permanece o mesmo, pois é apenas UI
+    _nameController.clear();
+    _cpfController.clear();
+    _phoneController.clear();
+    _notesController.clear();
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Novo Cliente"),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Nome'),
-                ),
-                TextField(
-                  controller: _cpfController,
-                  decoration: const InputDecoration(labelText: 'CPF'),
-                ),
-                TextField(
-                  controller: _phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'Telefone (Opcional)',
+        // Controllers para os campos de desconto
+        final categoryController = TextEditingController();
+        final percentageController = TextEditingController();
+
+        // StatefulBuilder para gerenciar o estado interno do Dialog
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Map<String, double> discounts = {};
+
+            return AlertDialog(
+              title: const Text("Novo Cliente"),
+              content: SizedBox(
+                width: 500, // Aumenta a largura do Dialog
+                child: SingleChildScrollView(
+                  child: ListBody(
+                    children: <Widget>[
+                      TextField(
+                        controller: _nameController,
+                        decoration: const InputDecoration(labelText: 'Nome*'),
+                      ),
+                      TextField(
+                        controller: _cpfController,
+                        decoration: const InputDecoration(labelText: 'CPF*'),
+                      ),
+                      TextField(
+                        controller: _phoneController,
+                        decoration: const InputDecoration(
+                          labelText: 'Telefone (Opcional)',
+                        ),
+                      ),
+                      TextField(
+                        controller: _notesController,
+                        decoration: const InputDecoration(
+                          labelText: 'Observações (Opcional)',
+                        ),
+                      ),
+                      const Divider(height: 30),
+                      const Text(
+                        'Gerenciar Descontos',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: categoryController,
+                              decoration: const InputDecoration(
+                                labelText: 'Categoria (ex: geral)',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: percentageController,
+                              decoration: const InputDecoration(
+                                labelText: 'Porcentagem %',
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.add_circle,
+                              color: Colors.green,
+                            ),
+                            onPressed: () {
+                              final category =
+                                  categoryController.text.trim().toLowerCase();
+                              final percentage = double.tryParse(
+                                percentageController.text,
+                              );
+                              if (category.isNotEmpty && percentage != null) {
+                                setDialogState(() {
+                                  discounts[category] = percentage;
+                                });
+                                categoryController.clear();
+                                percentageController.clear();
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 4.0,
+                        children:
+                            discounts.entries.map((entry) {
+                              return Chip(
+                                label: Text('${entry.key}: ${entry.value}%'),
+                                onDeleted: () {
+                                  setDialogState(() {
+                                    discounts.remove(entry.key);
+                                  });
+                                },
+                              );
+                            }).toList(),
+                      ),
+                    ],
                   ),
                 ),
-                TextField(
-                  controller: _notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Observações (Opcional)',
-                  ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text("Cancelar"),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                ElevatedButton(
+                  child: const Text("Salvar"),
+                  onPressed: () {
+                    if (_nameController.text.isEmpty ||
+                        _cpfController.text.isEmpty) {
+                      _showError('Nome e CPF são obrigatórios.');
+                    } else {
+                      _createClient(discounts: discounts); // Passa os descontos
+                      Navigator.of(context).pop();
+                    }
+                  },
                 ),
               ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text("Cancelar"),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _nameController.clear();
-                _cpfController.clear();
-                _phoneController.clear();
-                _notesController.clear();
-              },
-            ),
-            ElevatedButton(
-              child: const Text("Salvar"),
-              onPressed: () {
-                if (_nameController.text.isEmpty ||
-                    _cpfController.text.isEmpty) {
-                  _showError('Nome e CPF são obrigatórios.');
-                } else {
-                  _createClient();
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -189,7 +273,6 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
       _showSuccess('Selecione um cliente para remover.');
       return;
     }
-
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -201,9 +284,7 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
           actions: <Widget>[
             TextButton(
               child: const Text("Cancelar"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
               child: const Text("Confirmar"),
@@ -220,8 +301,6 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
 
   @override
   Widget build(BuildContext context) {
-    // A construção da UI (o widget build) permanece exatamente a mesma.
-    // Nenhuma alteração é necessária aqui.
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -239,230 +318,40 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Clientes Frequentes",
-                    textAlign: TextAlign.start,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 26,
-                    ),
+                  ClientSearchHeader(
+                    title: "Clientes Frequentes",
+                    searchController: _clientSearchController,
+                    onSearch: (value) {
+                      _fetchClients(searchQuery: value);
+                    },
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _clientSearchController,
-                          decoration: const InputDecoration(
-                            hintText: "Buscar por nome, CPF ou telefone",
-                            filled: true,
-                            fillColor: Color(0xFFFCFEF2),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(5.0),
-                              ),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                          onSubmitted: (value) {
-                            _fetchClients(searchQuery: value);
-                          },
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          _fetchClients(
-                            searchQuery: _clientSearchController.text,
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.search,
-                          color: Colors.white,
-                          size: 30,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Expanded(child: SizedBox()),
-                  Row(
-                    children: [
-                      ElevatedButton(
-                        onPressed: _showCreateClientDialog,
-                        style: ButtonStyle(
-                          shape:
-                              WidgetStateProperty.resolveWith<OutlinedBorder?>((
-                                states,
-                              ) {
-                                return const BeveledRectangleBorder(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(3),
-                                  ),
-                                );
-                              }),
-                          fixedSize: WidgetStateProperty.resolveWith<Size?>((
-                            states,
-                          ) {
-                            return const Size(200, 75);
-                          }),
-                          backgroundColor:
-                              WidgetStateProperty.resolveWith<Color?>((
-                                Set<WidgetState> states,
-                              ) {
-                                return const Color(0xFF36CDEB);
-                              }),
-                        ),
-                        child: const Text(
-                          "+ Novo Cliente",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 50),
-                      ElevatedButton(
-                        onPressed: _showConfirmationDialog,
-                        style: ButtonStyle(
-                          shape:
-                              WidgetStateProperty.resolveWith<OutlinedBorder?>((
-                                states,
-                              ) {
-                                return const BeveledRectangleBorder(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(3),
-                                  ),
-                                );
-                              }),
-                          fixedSize: WidgetStateProperty.resolveWith<Size?>((
-                            states,
-                          ) {
-                            return const Size(200, 75);
-                          }),
-                          backgroundColor:
-                              WidgetStateProperty.resolveWith<Color?>((
-                                Set<WidgetState> states,
-                              ) {
-                                return const Color(0xFF36CDEB);
-                              }),
-                        ),
-                        child: const Text(
-                          "- Remover Cliente",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const Spacer(),
+                  ClientActionButtons(
+                    onAddNew: _showCreateClientDialog,
+                    onRemoveSelected: _showConfirmationDialog,
                   ),
                 ],
               ),
             ),
-            Container(
-              width: 700,
-              decoration: const BoxDecoration(
-                color: Color(0xFF36CDEB),
-                borderRadius: BorderRadius.all(Radius.circular(15)),
-              ),
-              child: Column(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.all(12.0),
-                    child: Text(
-                      "Lista de Clientes",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white, fontSize: 26),
-                    ),
-                  ),
-                  Expanded(
-                    child: SizedBox(
-                      width: 800,
-                      child:
-                          _isLoading
-                              ? const Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                ),
-                              )
-                              : _error != null
-                              ? Center(
-                                child: Text(
-                                  _error!,
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              )
-                              : DataTable(
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFFCFEF2),
-                                  borderRadius: BorderRadius.only(
-                                    bottomLeft: Radius.circular(15),
-                                    bottomRight: Radius.circular(15),
-                                  ),
-                                ),
-                                columns: const [
-                                  DataColumn(label: Text('Nome')),
-                                  DataColumn(label: Text('CPF')),
-                                  DataColumn(label: Text('Telefone')),
-                                  DataColumn(label: Text('Ações')),
-                                ],
-                                rows:
-                                    _clients.map<DataRow>((client) {
-                                      final isSelected =
-                                          _selectedClientId == client['id'];
-                                      return DataRow(
-                                        color: WidgetStateProperty.resolveWith<
-                                          Color?
-                                        >((Set<WidgetState> states) {
-                                          if (isSelected) {
-                                            return Colors.blueGrey.withOpacity(
-                                              0.3,
-                                            );
-                                          }
-                                          return null;
-                                        }),
-                                        selected: isSelected,
-                                        onSelectChanged: (selected) {
-                                          setState(() {
-                                            _selectedClientId =
-                                                selected!
-                                                    ? client['id'] as int?
-                                                    : null;
-                                            _selectedClientName =
-                                                selected
-                                                    ? client['name'] as String?
-                                                    : null;
-                                          });
-                                        },
-                                        cells: [
-                                          DataCell(
-                                            Text(client['name'] ?? 'N/A'),
-                                          ),
-                                          DataCell(
-                                            Text(client['cpf'] ?? 'N/A'),
-                                          ),
-                                          DataCell(
-                                            Text(client['phone'] ?? 'N/A'),
-                                          ),
-                                          DataCell(
-                                            ElevatedButton(
-                                              onPressed: () {
-                                                _showSuccess(
-                                                  'Aplicado o desconto do cliente ${client['name']}',
-                                                );
-                                              },
-                                              child: const Text("Desconto"),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
-                              ),
-                    ),
-                  ),
-                ],
+            const SizedBox(width: 24),
+            Expanded(
+              flex: 3,
+              child: ClientList(
+                isLoading: _isLoading,
+                error: _error,
+                clients: _clients,
+                selectedClientId: _selectedClientId,
+                onSelectionChanged: (client, isSelected) {
+                  setState(() {
+                    if (isSelected ?? false) {
+                      _selectedClientId = client['id'] as int?;
+                      _selectedClientName = client['name'] as String?;
+                    } else {
+                      _selectedClientId = null;
+                      _selectedClientName = null;
+                    }
+                  });
+                },
               ),
             ),
           ],
