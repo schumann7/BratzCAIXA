@@ -1,6 +1,10 @@
 import 'package:bratzcaixa/components/header.dart';
+import 'package:bratzcaixa/components/product_action_buttons.dart';
+import 'package:bratzcaixa/components/product_list.dart';
+import 'package:bratzcaixa/components/product_search_header.dart';
 import 'package:bratzcaixa/services/api_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ProductsScreen extends StatelessWidget {
   const ProductsScreen({super.key});
@@ -19,7 +23,6 @@ class ProductsScreen extends StatelessWidget {
 
 class ProductsPageBody extends StatefulWidget {
   const ProductsPageBody({super.key});
-
   static const Color mustardYellow = Color(0xE6E6B23A);
 
   @override
@@ -35,6 +38,9 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
       TextEditingController();
   final TextEditingController _saleValueController = TextEditingController();
   final TextEditingController _expirationDateController =
+      TextEditingController();
+  final TextEditingController _categoryController = TextEditingController();
+  final TextEditingController _stockQuantityController =
       TextEditingController();
 
   List<dynamic> _products = [];
@@ -56,6 +62,8 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
     _purchaseValueController.dispose();
     _saleValueController.dispose();
     _expirationDateController.dispose();
+    _categoryController.dispose();
+    _stockQuantityController.dispose();
     super.dispose();
   }
 
@@ -65,7 +73,6 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
       _error = null;
       _selectedProductId = null;
     });
-
     try {
       final productsData = await _apiService.fetchProducts(
         searchQuery: searchQuery,
@@ -81,21 +88,24 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
     }
   }
 
-  Future<void> _createProduct() async {
-    final productData = {
-      'item': _itemController.text,
-      'brand': _brandController.text.isEmpty ? null : _brandController.text,
-      'purchase_value': double.tryParse(_purchaseValueController.text),
-      'sale_value': double.tryParse(_saleValueController.text),
-      'expiration_date':
-          _expirationDateController.text.isEmpty
-              ? null
-              : _expirationDateController.text,
-    };
-
+  Future<void> _createProduct(
+    Map<String, dynamic> productData, {
+    int? stockId,
+    int? quantity,
+  }) async {
     try {
-      await _apiService.createProduct(productData);
-      _showSuccess('Produto criado com sucesso!');
+      final newProduct = await _apiService.createProduct(productData);
+      _showSuccess('Produto "${newProduct['item']}" criado com sucesso!');
+
+      if (stockId != null && quantity != null && quantity > 0) {
+        final newProductId = newProduct['id'];
+        await _addStock(
+          productId: newProductId,
+          stockId: stockId,
+          quantity: quantity,
+        );
+      }
+
       _clearForm();
       _fetchProducts();
     } catch (e) {
@@ -113,22 +123,40 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
     }
   }
 
+  Future<void> _addStock({
+    required int productId,
+    required int stockId,
+    required int quantity,
+  }) async {
+    try {
+      await _apiService.addStock(
+        productId: productId,
+        stockId: stockId,
+        quantity: quantity,
+      );
+      _showSuccess('Estoque adicionado com sucesso!');
+      _fetchProducts();
+    } catch (e) {
+      _showError(e.toString());
+    }
+  }
+
   void _showError(String message) {
     if (!mounted) return;
     setState(() {
       _error = message;
       _isLoading = false;
     });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+    );
   }
 
   void _showSuccess(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
   }
 
   void _clearForm() {
@@ -137,68 +165,165 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
     _purchaseValueController.clear();
     _saleValueController.clear();
     _expirationDateController.clear();
+    _categoryController.clear();
+    _stockQuantityController.clear();
   }
 
-  void _showCreateProductDialog() {
+  void _showCreateProductDialog() async {
+    _clearForm();
+    List<dynamic> stocks = [];
+    try {
+      stocks = await _apiService.fetchStocks();
+    } catch (e) {
+      _showError(e.toString());
+    }
+
+    int? selectedStockId;
+    if (stocks.isNotEmpty) {
+      selectedStockId = stocks.first['id'];
+    }
+
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Novo Produto'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: _itemController,
-                    decoration: const InputDecoration(labelText: 'Item*'),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Novo Produto'),
+              content: SizedBox(
+                width: 500,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: _itemController,
+                        decoration: const InputDecoration(labelText: 'Item*'),
+                      ),
+                      TextField(
+                        controller: _brandController,
+                        decoration: const InputDecoration(labelText: 'Marca'),
+                      ),
+                      TextField(
+                        controller: _categoryController,
+                        decoration: const InputDecoration(
+                          labelText: 'Categoria',
+                        ),
+                      ),
+                      TextField(
+                        controller: _purchaseValueController,
+                        decoration: const InputDecoration(
+                          labelText: 'Valor de Compra',
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      TextField(
+                        controller: _saleValueController,
+                        decoration: const InputDecoration(
+                          labelText: 'Valor de Venda*',
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      TextField(
+                        controller: _expirationDateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Validade (DD-MM-AAAA)',
+                        ),
+                      ),
+                      const Divider(height: 30),
+                      const Text(
+                        'Estoque Inicial (Opcional)',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButton<int>(
+                              isExpanded: true,
+                              value: selectedStockId,
+                              hint: const Text('Local de Estoque'),
+                              items:
+                                  stocks.map<DropdownMenuItem<int>>((stock) {
+                                    return DropdownMenuItem<int>(
+                                      value: stock['id'],
+                                      child: Text(stock['name']),
+                                    );
+                                  }).toList(),
+                              onChanged: (value) {
+                                setDialogState(() => selectedStockId = value);
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: _stockQuantityController,
+                              decoration: const InputDecoration(
+                                labelText: 'Quantidade',
+                              ),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  TextField(
-                    controller: _brandController,
-                    decoration: const InputDecoration(labelText: 'Marca'),
-                  ),
-                  TextField(
-                    controller: _purchaseValueController,
-                    decoration: const InputDecoration(
-                      labelText: 'Valor de Compra',
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  TextField(
-                    controller: _saleValueController,
-                    decoration: const InputDecoration(
-                      labelText: 'Valor de Venda*',
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  TextField(
-                    controller: _expirationDateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Validade (DD-MM-AAAA)',
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (_itemController.text.isEmpty ||
-                      _saleValueController.text.isEmpty) {
-                    _showError('Item e Valor de Venda são obrigatórios.');
-                  } else {
-                    _createProduct();
-                    Navigator.of(context).pop();
-                  }
-                },
-                child: const Text('Salvar'),
-              ),
-            ],
-          ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_itemController.text.isEmpty ||
+                        _saleValueController.text.isEmpty) {
+                      _showError('Item e Valor de Venda são obrigatórios.');
+                    } else {
+                      final productData = {
+                        'item': _itemController.text,
+                        'brand':
+                            _brandController.text.isEmpty
+                                ? null
+                                : _brandController.text,
+                        'category':
+                            _categoryController.text.isEmpty
+                                ? null
+                                : _categoryController.text,
+                        'purchase_value': double.tryParse(
+                          _purchaseValueController.text,
+                        ),
+                        'sale_value': double.tryParse(
+                          _saleValueController.text,
+                        ),
+                        'expiration_date':
+                            _expirationDateController.text.isEmpty
+                                ? null
+                                : _expirationDateController.text,
+                      };
+                      _createProduct(
+                        productData,
+                        stockId: selectedStockId,
+                        quantity: int.tryParse(_stockQuantityController.text),
+                      );
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: const Text('Salvar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -252,176 +377,37 @@ class _ProductsPageBodyState extends State<ProductsPageBody> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Produtos',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 26,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          style: const TextStyle(color: Colors.black87),
-                          decoration: const InputDecoration(
-                            hintText: 'Buscar por nome ou marca',
-                            filled: true,
-                            fillColor: Color(0xFFFCFEF2),
-                            border: OutlineInputBorder(
-                              borderSide: BorderSide.none,
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(8),
-                              ),
-                            ),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 14,
-                            ),
-                          ),
-                          onSubmitted:
-                              (value) => _fetchProducts(searchQuery: value),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed:
-                            () => _fetchProducts(
-                              searchQuery: _searchController.text,
-                            ),
-                        icon: const Icon(
-                          Icons.search,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                    ],
+                  ProductSearchHeader(
+                    title: 'Produtos',
+                    searchController: _searchController,
+                    onSearch: (value) => _fetchProducts(searchQuery: value),
                   ),
                   const Spacer(),
-                  Row(
-                    children: [
-                      ElevatedButton(
-                        onPressed: _showCreateProductDialog,
-                        child: const Text('+ Novo Produto'),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: _showDeleteConfirmationDialog,
-                        child: const Text('- Remover Produto'),
-                      ),
-                    ],
+                  ProductActionButtons(
+                    onAddNew: _showCreateProductDialog,
+                    onRemoveSelected: _showDeleteConfirmationDialog,
                   ),
-                  const SizedBox(height: 16),
                 ],
               ),
             ),
             const SizedBox(width: 24),
             Expanded(
               flex: 4,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.all(Radius.circular(12)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black45,
-                      blurRadius: 12,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: const BoxDecoration(
-                        color: ProductsPageBody.mustardYellow,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          topRight: Radius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Lista de Produtos',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child:
-                          _isLoading
-                              ? const Center(
-                                child: CircularProgressIndicator(
-                                  color: ProductsPageBody.mustardYellow,
-                                ),
-                              )
-                              : _error != null
-                              ? Center(
-                                child: Text(
-                                  _error!,
-                                  style: const TextStyle(color: Colors.black54),
-                                ),
-                              )
-                              : SingleChildScrollView(
-                                child: DataTable(
-                                  columns: const [
-                                    DataColumn(label: Text('Item')),
-                                    DataColumn(label: Text('Marca')),
-                                    DataColumn(label: Text('Preço')),
-                                    DataColumn(label: Text('Validade')),
-                                  ],
-                                  rows:
-                                      _products.map<DataRow>((product) {
-                                        return DataRow(
-                                          selected:
-                                              _selectedProductId ==
-                                              product['id'],
-                                          onSelectChanged: (isSelected) {
-                                            setState(() {
-                                              if (isSelected ?? false) {
-                                                _selectedProductId =
-                                                    product['id'];
-                                              } else {
-                                                _selectedProductId = null;
-                                              }
-                                            });
-                                          },
-                                          cells: [
-                                            DataCell(
-                                              Text(product['item'] ?? 'N/A'),
-                                            ),
-                                            DataCell(
-                                              Text(product['brand'] ?? 'N/A'),
-                                            ),
-                                            DataCell(
-                                              Text(
-                                                'R\$ ${product['sale_value']?.toStringAsFixed(2) ?? 'N/A'}',
-                                              ),
-                                            ),
-                                            DataCell(
-                                              Text(
-                                                product['expiration_date'] ??
-                                                    'N/A',
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      }).toList(),
-                                ),
-                              ),
-                    ),
-                  ],
-                ),
+              child: ProductList(
+                isLoading: _isLoading,
+                error: _error,
+                products: _products,
+                selectedProductId: _selectedProductId,
+                onSelectionChanged: (product, isSelected) {
+                  setState(() {
+                    if (isSelected ?? false) {
+                      _selectedProductId = product['id'];
+                    } else {
+                      _selectedProductId = null;
+                    }
+                  });
+                },
+                headerColor: ProductsPageBody.mustardYellow,
               ),
             ),
           ],

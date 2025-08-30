@@ -5,7 +5,6 @@ import 'package:bratzcaixa/services/auth_service.dart';
 class ApiService {
   final String _baseUrl = 'http://localhost:5000/bratz';
 
-  // --- Funções de Venda ---
   Future<void> registerSell(Map<String, dynamic> sellData) async {
     final token = AuthService.token;
     if (token == null) {
@@ -25,7 +24,6 @@ class ApiService {
     }
   }
 
-  // --- Funções de Cliente ---
   Future<List<dynamic>> fetchClients({String? searchQuery}) async {
     final token = AuthService.token;
     if (token == null) throw Exception('Usuário não autenticado.');
@@ -35,7 +33,10 @@ class ApiService {
     } else {
       url = Uri.parse('$_baseUrl/clients');
     }
-    final response = await http.get(url, headers: {'Authorization': 'Bearer $token'});
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
     if (response.statusCode == 200) {
       return json.decode(response.body)['data']['clients'];
     } else {
@@ -73,33 +74,34 @@ class ApiService {
     }
   }
 
-  // --- Funções de Produto ---
   Future<List<dynamic>> fetchProducts({String? searchQuery}) async {
     final token = AuthService.token;
     if (token == null) throw Exception('Usuário não autenticado.');
+
     final Map<String, String> queryParams = {};
     if (searchQuery != null && searchQuery.isNotEmpty) {
       queryParams['item'] = searchQuery;
     }
     final url = Uri.http('localhost:5000', '/bratz/products', queryParams);
-    final response = await http.get(url, headers: {'Authorization': 'Bearer $token'});
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
     if (response.statusCode == 200) {
       return json.decode(response.body)['data']['products'];
     } else {
       throw Exception('Falha ao carregar produtos');
     }
   }
-  
-  // --- MÉTODO QUE ESTAVA FALTANDO ---
+
   Future<Map<String, dynamic>> fetchProductById(String id) async {
     final token = AuthService.token;
     if (token == null) throw Exception('Usuário não autenticado.');
-
     final response = await http.get(
       Uri.parse('$_baseUrl/products/$id'),
       headers: {'Authorization': 'Bearer $token'},
     );
-
     if (response.statusCode == 200) {
       return json.decode(response.body)['data'];
     } else {
@@ -107,7 +109,9 @@ class ApiService {
     }
   }
 
-  Future<void> createProduct(Map<String, dynamic> productData) async {
+  Future<Map<String, dynamic>> createProduct(
+    Map<String, dynamic> productData,
+  ) async {
     final token = AuthService.token;
     if (token == null) throw Exception('Usuário não autenticado.');
 
@@ -120,7 +124,9 @@ class ApiService {
       body: jsonEncode(productData),
     );
 
-    if (response.statusCode != 201) {
+    if (response.statusCode == 201) {
+      return json.decode(response.body)['data'];
+    } else {
       final errorResponse = json.decode(response.body);
       throw Exception('Erro ao criar produto: ${errorResponse['message']}');
     }
@@ -138,6 +144,45 @@ class ApiService {
     if (response.statusCode != 200) {
       final errorResponse = json.decode(response.body);
       throw Exception('Erro ao remover produto: ${errorResponse['message']}');
+    }
+  }
+
+  Future<void> addStock({
+    required int productId,
+    required int stockId,
+    required int quantity,
+  }) async {
+    final token = AuthService.token;
+    if (token == null) throw Exception('Usuário não autenticado.');
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/stocks/$stockId/products/$productId'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'quantity': quantity}),
+    );
+
+    if (response.statusCode != 200) {
+      final errorResponse = json.decode(response.body);
+      throw Exception('Erro ao adicionar estoque: ${errorResponse['message']}');
+    }
+  }
+
+  Future<List<dynamic>> fetchStocks() async {
+    final token = AuthService.token;
+    if (token == null) throw Exception('Usuário não autenticado.');
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/stocks'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body)['data'];
+    } else {
+      throw Exception('Falha ao carregar locais de estoque');
     }
   }
 }
