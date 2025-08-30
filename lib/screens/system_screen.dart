@@ -1,9 +1,10 @@
 import 'package:bratzcaixa/components/change_display.dart';
 import 'package:bratzcaixa/components/header.dart';
+import 'package:bratzcaixa/components/product_cart_list.dart';
 import 'package:bratzcaixa/components/product_search_code_field.dart';
 import 'package:bratzcaixa/components/product_search_name_field.dart';
 import 'package:bratzcaixa/components/receipt_display.dart';
-import 'package:bratzcaixa/components/subtotal_display.dart';
+import 'package:bratzcaixa/components/totals_display.dart';
 import 'package:bratzcaixa/components/unit_value_display.dart';
 import 'package:bratzcaixa/services/api_service.dart';
 import 'package:bratzcaixa/services/auth_service.dart';
@@ -38,14 +39,19 @@ class _SystemPageBodyState extends State<SystemPageBody> {
   final TextEditingController _searchControllerName = TextEditingController();
   final TextEditingController _searchControllerCode = TextEditingController();
   final LayerLink _layerLink = LayerLink();
-  final TextEditingController _valorRecebidoController = TextEditingController();
+  final TextEditingController _valorRecebidoController =
+      TextEditingController();
+  final TextEditingController _clientSearchController = TextEditingController();
 
   double _subtotalValue = 0.0;
+  double _discountValue = 0.0;
+  double _totalValue = 0.0;
   bool _isLoading = true;
   final List<Map<String, dynamic>> _cartItems = [];
   List<dynamic> _allProducts = [];
   List<dynamic> _filteredProducts = [];
 
+  Map<String, dynamic>? _selectedClient;
   double _valorRecebidoDisplay = 0.0;
   double _trocoDisplay = 0.0;
 
@@ -60,6 +66,7 @@ class _SystemPageBodyState extends State<SystemPageBody> {
     _searchControllerName.dispose();
     _searchControllerCode.dispose();
     _valorRecebidoController.dispose();
+    _clientSearchController.dispose();
     super.dispose();
   }
 
@@ -84,10 +91,11 @@ class _SystemPageBodyState extends State<SystemPageBody> {
       return;
     }
     setState(() {
-      _filteredProducts = _allProducts.where((product) {
-        final productName = product['item']?.toLowerCase() ?? '';
-        return productName.contains(query.toLowerCase());
-      }).toList();
+      _filteredProducts =
+          _allProducts.where((product) {
+            final productName = product['item']?.toLowerCase() ?? '';
+            return productName.contains(query.toLowerCase());
+          }).toList();
     });
   }
 
@@ -121,8 +129,9 @@ class _SystemPageBodyState extends State<SystemPageBody> {
 
     setState(() {
       final int availableStock = product['quantity_in_stock'] ?? 0;
-      final existingIndex =
-          _cartItems.indexWhere((item) => item['id'] == product['id']);
+      final existingIndex = _cartItems.indexWhere(
+        (item) => item['id'] == product['id'],
+      );
       int currentQuantityInCart = 0;
       if (existingIndex >= 0) {
         currentQuantityInCart = _cartItems[existingIndex]['quantity'];
@@ -130,7 +139,8 @@ class _SystemPageBodyState extends State<SystemPageBody> {
 
       if (currentQuantityInCart + 1 > availableStock) {
         _showError(
-            'Estoque insuficiente para ${product['item']}. Disponível: $availableStock');
+          'Estoque insuficiente para ${product['item']}. Disponível: $availableStock',
+        );
         return;
       }
 
@@ -144,25 +154,50 @@ class _SystemPageBodyState extends State<SystemPageBody> {
           'brand': product['brand'],
           'quantity': 1,
           'quantity_in_stock': availableStock,
+          'category': product['category'],
         });
       }
-      _calculateSubtotal();
+      _updateTotals();
     });
   }
 
   void _removeItemFromCart(int productId) {
     setState(() {
       _cartItems.removeWhere((item) => item['id'] == productId);
-      _calculateSubtotal();
+      _updateTotals();
     });
   }
 
-  void _calculateSubtotal() {
-    double sum = 0.0;
+  void _updateTotals() {
+    double newSubtotal = 0.0;
+    double newDiscount = 0.0;
+
     for (var item in _cartItems) {
-      sum += (item['sale_value'] * item['quantity']);
+      final lineTotal = (item['sale_value'] * item['quantity']);
+      newSubtotal += lineTotal;
+
+      if (_selectedClient != null && _selectedClient!['discounts'] != null) {
+        final Map<String, dynamic> discounts = _selectedClient!['discounts'];
+        final String? itemCategory = item['category']?.toLowerCase();
+        double percentage = 0.0;
+
+        if (itemCategory != null && discounts.containsKey(itemCategory)) {
+          percentage = discounts[itemCategory]?.toDouble() ?? 0.0;
+        } else if (discounts.containsKey('geral')) {
+          percentage = discounts['geral']?.toDouble() ?? 0.0;
+        }
+
+        if (percentage > 0) {
+          newDiscount += lineTotal * (percentage / 100.0);
+        }
+      }
     }
-    setState(() => _subtotalValue = sum);
+
+    setState(() {
+      _subtotalValue = newSubtotal;
+      _discountValue = newDiscount;
+      _totalValue = newSubtotal - newDiscount;
+    });
   }
 
   Future<void> _registerSaleOnApi({
@@ -183,21 +218,22 @@ class _SystemPageBodyState extends State<SystemPageBody> {
       return;
     }
 
-    final List<Map<String, dynamic>> itemsPayload = _cartItems.map((item) {
-      return {
-        'product_id': item['id'],
-        'product_name': item['item'],
-        'quantity': item['quantity'],
-        'unit_value': item['sale_value'],
-        'total_value_item': item['sale_value'] * item['quantity'],
-      };
-    }).toList();
+    final List<Map<String, dynamic>> itemsPayload =
+        _cartItems.map((item) {
+          return {
+            'product_id': item['id'],
+            'product_name': item['item'],
+            'quantity': item['quantity'],
+            'unit_value': item['sale_value'],
+            'total_value_item': item['sale_value'] * item['quantity'],
+          };
+        }).toList();
 
     final sellData = {
       'sell_id': const Uuid().v4(),
       'id_caixa': idCaixa,
       'operator': operatorName,
-      'total_value': _subtotalValue,
+      'total_value': _totalValue,
       'payment_method': paymentMethod,
       'received_value': receivedValue,
       'change': change,
@@ -208,9 +244,10 @@ class _SystemPageBodyState extends State<SystemPageBody> {
       await _apiService.registerSell(sellData);
       setState(() {
         _cartItems.clear();
+        _selectedClient = null;
         _valorRecebidoDisplay = receivedValue ?? 0.0;
         _trocoDisplay = change ?? 0.0;
-        _calculateSubtotal();
+        _updateTotals();
       });
       _showSuccess('Venda registrada com sucesso!');
     } catch (e) {
@@ -234,10 +271,9 @@ class _SystemPageBodyState extends State<SystemPageBody> {
               final valorRecebido =
                   double.tryParse(_valorRecebidoController.text) ?? 0.0;
               if (selectedPaymentMethod == 'Dinheiro') {
-                isConfirmButtonEnabled = valorRecebido >= _subtotalValue;
-                troco = isConfirmButtonEnabled
-                    ? valorRecebido - _subtotalValue
-                    : 0.0;
+                isConfirmButtonEnabled = valorRecebido >= _totalValue;
+                troco =
+                    isConfirmButtonEnabled ? valorRecebido - _totalValue : 0.0;
               } else {
                 isConfirmButtonEnabled = true;
                 troco = 0.0;
@@ -252,7 +288,7 @@ class _SystemPageBodyState extends State<SystemPageBody> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'Total a Pagar: R\$ ${_subtotalValue.toStringAsFixed(2)}',
+                      'Total a Pagar: R\$ ${_totalValue.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
@@ -263,23 +299,27 @@ class _SystemPageBodyState extends State<SystemPageBody> {
                     DropdownButton<String>(
                       value: selectedPaymentMethod,
                       isExpanded: true,
-                      items: [
-                        'Dinheiro',
-                        'Pix',
-                        'Débito',
-                        'Crédito',
-                        'Vale',
-                        'Cheque',
-                      ]
-                          .map((String value) => DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              ))
-                          .toList(),
-                      onChanged: (String? newValue) => setDialogState(() {
-                        selectedPaymentMethod = newValue!;
-                        updateTotal();
-                      }),
+                      items:
+                          [
+                                'Dinheiro',
+                                'Pix',
+                                'Débito',
+                                'Crédito',
+                                'Vale',
+                                'Cheque',
+                              ]
+                              .map(
+                                (String value) => DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                ),
+                              )
+                              .toList(),
+                      onChanged:
+                          (String? newValue) => setDialogState(() {
+                            selectedPaymentMethod = newValue!;
+                            updateTotal();
+                          }),
                     ),
                     if (selectedPaymentMethod == 'Dinheiro')
                       Column(
@@ -314,18 +354,104 @@ class _SystemPageBodyState extends State<SystemPageBody> {
                   onPressed: () => Navigator.of(context).pop(),
                 ),
                 ElevatedButton(
-                  onPressed: isConfirmButtonEnabled
-                      ? () {
-                          Navigator.of(context).pop();
-                          _registerSaleOnApi(
-                            paymentMethod: selectedPaymentMethod,
-                            receivedValue:
-                                double.tryParse(_valorRecebidoController.text),
-                            change: troco,
-                          );
-                        }
-                      : null,
+                  onPressed:
+                      isConfirmButtonEnabled
+                          ? () {
+                            Navigator.of(context).pop();
+                            _registerSaleOnApi(
+                              paymentMethod: selectedPaymentMethod,
+                              receivedValue: double.tryParse(
+                                _valorRecebidoController.text,
+                              ),
+                              change: troco,
+                            );
+                          }
+                          : null,
                   child: const Text('Confirmar Pagamento'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showClientSearchDialog() async {
+    _clientSearchController.clear();
+    List<dynamic> foundClients = [];
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> search(String query) async {
+              if (query.length < 2) {
+                setDialogState(() => foundClients = []);
+                return;
+              }
+              try {
+                final result = await _apiService.fetchClients(
+                  searchQuery: query,
+                );
+                setDialogState(() => foundClients = result);
+              } catch (e) {
+                // Silently fail
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Identificar Cliente'),
+              content: SizedBox(
+                width: 400,
+                height: 300,
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _clientSearchController,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        hintText: 'Buscar por nome ou CPF...',
+                      ),
+                      onChanged: search,
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: foundClients.length,
+                        itemBuilder: (context, index) {
+                          final client = foundClients[index];
+                          return ListTile(
+                            title: Text(
+                              client['name'] ?? 'Nome não encontrado',
+                            ),
+                            onTap: () {
+                              setState(() {
+                                _selectedClient = client;
+                              });
+                              _updateTotals();
+                              Navigator.of(context).pop();
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedClient = null;
+                    });
+                    _updateTotals();
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Remover Cliente'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Fechar'),
                 ),
               ],
             );
@@ -358,84 +484,105 @@ class _SystemPageBodyState extends State<SystemPageBody> {
   }
 
   Widget _titleBar() => Container(
-        height: 44,
-        width: 700,
-        decoration: BoxDecoration(
-          color: const Color(0xFF2E7DFF),
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: const [
-            BoxShadow(
-                color: Colors.black45, blurRadius: 8, offset: Offset(0, 3)),
-          ],
+    height: 44,
+    width: 700,
+    decoration: BoxDecoration(
+      color: const Color(0xFF2E7DFF),
+      borderRadius: BorderRadius.circular(6),
+      boxShadow: const [
+        BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 3)),
+      ],
+    ),
+    alignment: Alignment.center,
+    child: const Text(
+      'CAIXA ABERTO',
+      style: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w700,
+        fontSize: 18,
+        letterSpacing: 1.0,
+      ),
+    ),
+  );
+
+  Widget _buildClientButton() {
+    return Container(
+      width: 400,
+      height: 40,
+      margin: const EdgeInsets.only(top: 20),
+      child: OutlinedButton.icon(
+        icon: Icon(
+          _selectedClient != null ? Icons.person : Icons.person_add,
+          color: Colors.white,
         ),
-        alignment: Alignment.center,
-        child: const Text(
-          'CAIXA ABERTO',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-            letterSpacing: 1.0,
-          ),
+        label: Text(
+          _selectedClient != null
+              ? _selectedClient!['name']
+              : 'Identificar Cliente',
+          style: const TextStyle(color: Colors.white),
         ),
-      );
+        onPressed: _showClientSearchDialog,
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Colors.white54),
+        ),
+      ),
+    );
+  }
 
   Widget _finalizarVendaButton() => Container(
-        width: 400,
-        height: 60,
-        margin: const EdgeInsets.only(top: 20),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-          ),
-          onPressed: _cartItems.isEmpty ? null : _showPaymentDialog,
-          child: const Text(
-            'Finalizar Venda',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
+    width: 400,
+    height: 60,
+    margin: const EdgeInsets.only(top: 20),
+    child: ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.green,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      ),
+      onPressed: _cartItems.isEmpty ? null : _showPaymentDialog,
+      child: const Text(
+        'Finalizar Venda',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
         ),
-      );
+      ),
+    ),
+  );
 
   Widget _buildSearchResultsOverlay() => CompositedTransformFollower(
-        link: _layerLink,
-        showWhenUnlinked: false,
-        offset: const Offset(0.0, 108.0),
-        child: Material(
-          elevation: 4.0,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            width: 400,
-            constraints: const BoxConstraints(maxHeight: 220),
-            child: ListView.builder(
-              padding: EdgeInsets.zero,
-              shrinkWrap: true,
-              itemCount: _filteredProducts.length,
-              itemBuilder: (context, index) {
-                final product = _filteredProducts[index];
-                return ListTile(
-                  title: Text(product['item'] ?? 'N/A'),
-                  subtitle: Text(
-                    'R\$ ${product['sale_value']?.toStringAsFixed(2) ?? 'N/A'}',
-                  ),
-                  trailing:
-                      Text('Estoque: ${product['quantity_in_stock'] ?? 0}'),
-                  onTap: () {
-                    _addItemToCart(product);
-                    _resetSearch();
-                    _showSuccess('Produto adicionado ao carrinho!');
-                  },
-                );
+    link: _layerLink,
+    showWhenUnlinked: false,
+    offset: const Offset(0.0, 108.0),
+    child: Material(
+      elevation: 4.0,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 400,
+        constraints: const BoxConstraints(maxHeight: 220),
+        child: ListView.builder(
+          padding: EdgeInsets.zero,
+          shrinkWrap: true,
+          itemCount: _filteredProducts.length,
+          itemBuilder: (context, index) {
+            final product = _filteredProducts[index];
+            return ListTile(
+              title: Text(product['item'] ?? 'N/A'),
+              subtitle: Text(
+                'R\$ ${product['sale_value']?.toStringAsFixed(2) ?? 'N/A'}',
+              ),
+              trailing: Text('Estoque: ${product['quantity_in_stock'] ?? 0}'),
+              onTap: () {
+                _addItemToCart(product);
+                _resetSearch();
+                _showSuccess('Produto adicionado ao carrinho!');
               },
-            ),
-          ),
+            );
+          },
         ),
-      );
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -485,6 +632,7 @@ class _SystemPageBodyState extends State<SystemPageBody> {
                       controller: _searchControllerCode,
                       onSubmitted: _fetchProductById,
                     ),
+                    _buildClientButton(),
                     _finalizarVendaButton(),
                   ],
                 ),
@@ -494,133 +642,17 @@ class _SystemPageBodyState extends State<SystemPageBody> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(12),
-                            ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black45,
-                                blurRadius: 12,
-                                offset: Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF2E7DFF),
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: Radius.circular(12),
-                                    topRight: Radius.circular(12),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Lista de Produtos',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              _isLoading
-                                  ? const Center(
-                                      child: CircularProgressIndicator(
-                                        color: Color(0xFF2E7DFF),
-                                      ),
-                                    )
-                                  : Expanded(
-                                      child: SingleChildScrollView(
-                                        child: SingleChildScrollView(
-                                          scrollDirection: Axis.horizontal,
-                                          child: DataTable(
-                                            decoration: const BoxDecoration(
-                                              color: Colors.white,
-                                            ),
-                                            columns: const [
-                                              DataColumn(label: Text('Item')),
-                                              DataColumn(label: Text('Código')),
-                                              DataColumn(label: Text('Qtd.')),
-                                              DataColumn(label: Text('Valor')),
-                                              DataColumn(label: Text('Total')),
-                                              DataColumn(label: Text('Ações')),
-                                            ],
-                                            rows: _cartItems
-                                                .map<DataRow>((item) {
-                                              final total =
-                                                  item['sale_value'] *
-                                                      item['quantity'];
-                                              return DataRow(
-                                                cells: [
-                                                  DataCell(
-                                                    Text(
-                                                      item['item'] ?? 'N/A',
-                                                    ),
-                                                  ),
-                                                  DataCell(
-                                                    Text(
-                                                      item['id']?.toString() ??
-                                                          'N/A',
-                                                    ),
-                                                  ),
-                                                  DataCell(
-                                                    Text(
-                                                      item['quantity']
-                                                          .toString(),
-                                                    ),
-                                                  ),
-                                                  DataCell(
-                                                    Text(
-                                                      item['sale_value']
-                                                              ?.toStringAsFixed(
-                                                                2,
-                                                              ) ??
-                                                          'N/A',
-                                                    ),
-                                                  ),
-                                                  DataCell(
-                                                    Text(
-                                                      total.toStringAsFixed(
-                                                        2,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  DataCell(
-                                                    IconButton(
-                                                      icon: const Icon(
-                                                        Icons.delete_outline,
-                                                        color: Colors.red,
-                                                      ),
-                                                      onPressed: () =>
-                                                          _removeItemFromCart(
-                                                        item['id'],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              );
-                                            }).toList(),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                            ],
-                          ),
+                        child: ProductCartList(
+                          isLoading: _isLoading,
+                          cartItems: _cartItems,
+                          onRemoveItem: _removeItemFromCart,
                         ),
                       ),
-                      Expanded(
-                        flex: 0,
-                        child: SubtotalDisplay(value: _subtotalValue),
+                      TotalsDisplay(
+                        subtotal: _subtotalValue,
+                        discount: _discountValue,
+                        total: _totalValue,
+                        clientName: _selectedClient?['name'],
                       ),
                       Row(
                         children: [
@@ -628,9 +660,7 @@ class _SystemPageBodyState extends State<SystemPageBody> {
                             child: ReceiptDisplay(value: _valorRecebidoDisplay),
                           ),
                           const SizedBox(width: 20),
-                          Expanded(
-                            child: ChangeDisplay(value: _trocoDisplay),
-                          ),
+                          Expanded(child: ChangeDisplay(value: _trocoDisplay)),
                         ],
                       ),
                     ],
