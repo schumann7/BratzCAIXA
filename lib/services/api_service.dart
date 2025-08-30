@@ -185,4 +185,29 @@ class ApiService {
       throw Exception('Falha ao carregar locais de estoque');
     }
   }
+
+  Future<List<dynamic>> fetchMySales() async {
+    final token = AuthService.token;
+    final profile = AuthService.profile;
+
+    if (token == null || profile == null) {
+      throw Exception('Usuário ou perfil não encontrado. Faça o login novamente.');
+    }
+
+    final cashierId = profile['register_number']?.toString();
+    if (cashierId == null) {
+      throw Exception('Número de registro do caixa não encontrado.');
+    }
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/finances/specific/$cashierId/sells'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body)['data']['sells'];
+    } else {
+      throw Exception('Falha ao carregar o histórico de vendas');
+    }
+  }
 }
