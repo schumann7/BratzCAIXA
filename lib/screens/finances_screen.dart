@@ -223,10 +223,9 @@ class _FinancesPageBodyState extends State<FinancesPageBody> {
             _filteredSales.map((sale) {
               final saleTime = DateTime.parse(sale['sell_time']);
 
-              // --- CORREÇÃO APLICADA AQUI ---
               final saleId =
                   sale['id']
-                      as String?; // Pega o ID como uma String que pode ser nula
+                      as String?;
               final displayText =
                   saleId != null ? '#${saleId.substring(0, 8)}...' : 'ID N/A';
 

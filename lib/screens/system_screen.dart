@@ -225,12 +225,12 @@ class _SystemPageBodyState extends State<SystemPageBody> {
             'product_name': item['item'],
             'quantity': item['quantity'],
             'unit_value': item['sale_value'],
-            'total_value_item': item['sale_value'] * item['quantity'],
+            'total_value': item['sale_value'] * item['quantity'],
           };
         }).toList();
 
     final sellData = {
-      'sell_id': const Uuid().v4(),
+      'id': const Uuid().v4(),
       'id_caixa': idCaixa,
       'operator': operatorName,
       'total_value': _totalValue,

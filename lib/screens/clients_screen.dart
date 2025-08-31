@@ -4,7 +4,6 @@ import 'package:bratzcaixa/components/client_search_header.dart';
 import 'package:bratzcaixa/components/header.dart';
 import 'package:bratzcaixa/services/api_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class ClientsScreen extends StatelessWidget {
   const ClientsScreen({super.key});
@@ -35,6 +34,8 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
   final TextEditingController _cpfController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _categoryController = TextEditingController();
+  final TextEditingController _percentageController = TextEditingController();
 
   List<dynamic> _clients = [];
   bool _isLoading = true;
@@ -81,7 +82,11 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
     }
   }
 
-  Future<void> _createClient({required Map<String, double> discounts}) async {
+  // --- FUNÇÃO CORRIGIDA ---
+  Future<void> _createClient({required String category, required double percentage}) async {
+    Map<String, double> discounts = {category: percentage};
+    debugPrint(discounts.toString());
+    // Monta o payload incluindo os descontos recebidos do dialog
     final Map<String, dynamic> clientData = {
       'name': _nameController.text,
       'cpf': _cpfController.text,
@@ -136,109 +141,62 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        // Controllers para os campos de desconto
-        final categoryController = TextEditingController();
-        final percentageController = TextEditingController();
-
-        // StatefulBuilder para gerenciar o estado interno do Dialog
+        
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            Map<String, double> discounts = {};
 
             return AlertDialog(
               title: const Text("Novo Cliente"),
               content: SizedBox(
-                width: 500, // Aumenta a largura do Dialog
+                width: 500,
                 child: SingleChildScrollView(
                   child: ListBody(
                     children: <Widget>[
-                      TextField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(labelText: 'Nome*'),
-                      ),
-                      TextField(
-                        controller: _cpfController,
-                        decoration: const InputDecoration(labelText: 'CPF*'),
-                      ),
-                      TextField(
-                        controller: _phoneController,
-                        decoration: const InputDecoration(
-                          labelText: 'Telefone (Opcional)',
-                        ),
-                      ),
-                      TextField(
-                        controller: _notesController,
-                        decoration: const InputDecoration(
-                          labelText: 'Observações (Opcional)',
-                        ),
-                      ),
+                      TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Nome*')),
+                      TextField(controller: _cpfController, decoration: const InputDecoration(labelText: 'CPF*')),
+                      TextField(controller: _phoneController, decoration: const InputDecoration(labelText: 'Telefone (Opcional)')),
+                      TextField(controller: _notesController, decoration: const InputDecoration(labelText: 'Observações (Opcional)')),
                       const Divider(height: 30),
-                      const Text(
-                        'Gerenciar Descontos',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      const Text('Gerenciar Descontos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 10),
                       Row(
                         children: [
-                          Expanded(
-                            child: TextField(
-                              controller: categoryController,
-                              decoration: const InputDecoration(
-                                labelText: 'Categoria (ex: geral)',
-                              ),
-                            ),
-                          ),
+                          Expanded(child: TextField(controller: _categoryController, decoration: const InputDecoration(labelText: 'Categoria (ex: geral)'))),
                           const SizedBox(width: 10),
-                          Expanded(
-                            child: TextField(
-                              controller: percentageController,
-                              decoration: const InputDecoration(
-                                labelText: 'Porcentagem %',
-                              ),
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
+                          Expanded(child: TextField(controller: _percentageController, decoration: const InputDecoration(labelText: 'Porcentagem %'), keyboardType: TextInputType.number)),
                           IconButton(
-                            icon: const Icon(
-                              Icons.add_circle,
-                              color: Colors.green,
-                            ),
+                            icon: const Icon(Icons.add_circle, color: Colors.green),
                             onPressed: () {
-                              final category =
-                                  categoryController.text.trim().toLowerCase();
-                              final percentage = double.tryParse(
-                                percentageController.text,
-                              );
+                              debugPrint('Adicionar desconto');
+                              final category = _categoryController.text.trim().toLowerCase();
+                              final percentage = double.tryParse(_percentageController.text);
+                              debugPrint('Categoria: $category, Porcentagem: $percentage');
                               if (category.isNotEmpty && percentage != null) {
                                 setDialogState(() {
-                                  discounts[category] = percentage;
+                                  // Adiciona o desconto ao estado do diálogo
                                 });
-                                categoryController.clear();
-                                percentageController.clear();
+                                _categoryController.clear();
+                                _percentageController.clear();
                               }
                             },
                           ),
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8.0,
-                        runSpacing: 4.0,
-                        children:
-                            discounts.entries.map((entry) {
-                              return Chip(
-                                label: Text('${entry.key}: ${entry.value}%'),
-                                onDeleted: () {
-                                  setDialogState(() {
-                                    discounts.remove(entry.key);
-                                  });
-                                },
-                              );
-                            }).toList(),
-                      ),
+                      // Wrap(
+                      //   spacing: 8.0,
+                      //   runSpacing: 4.0,
+                      //   children: discounts.entries.map((entry) {
+                      //     return Chip(
+                      //       label: Text('${entry.key}: ${entry.value}%'),
+                      //       onDeleted: () {
+                      //         setDialogState(() {
+                      //           discounts.remove(entry.key);
+                      //         });
+                      //       },
+                      //     );
+                      //   }).toList(),
+                      // ),
                     ],
                   ),
                 ),
@@ -251,11 +209,16 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
                 ElevatedButton(
                   child: const Text("Salvar"),
                   onPressed: () {
-                    if (_nameController.text.isEmpty ||
-                        _cpfController.text.isEmpty) {
+                    final cpf = _cpfController.text.replaceAll(RegExp(r'[.-]'), '');
+                    if (_nameController.text.isEmpty || cpf.isEmpty) {
                       _showError('Nome e CPF são obrigatórios.');
+                    } else if (cpf.length != 11) {
+                      _showError('O CPF deve conter exatamente 11 dígitos.');
                     } else {
-                      _createClient(discounts: discounts); // Passa os descontos
+                      _createClient(
+                        category: _categoryController.text.trim().toLowerCase(),
+                        percentage: double.tryParse(_percentageController.text) ?? 0.0,
+                      );
                       Navigator.of(context).pop();
                     }
                   },
@@ -278,14 +241,9 @@ class _ClientsPageBodyState extends State<ClientsPageBody> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text("Confirmar Remoção"),
-          content: Text(
-            "Tem certeza que deseja remover o cliente $_selectedClientName?",
-          ),
+          content: Text("Tem certeza que deseja remover o cliente $_selectedClientName?"),
           actions: <Widget>[
-            TextButton(
-              child: const Text("Cancelar"),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
+            TextButton(child: const Text("Cancelar"), onPressed: () => Navigator.of(context).pop()),
             ElevatedButton(
               child: const Text("Confirmar"),
               onPressed: () {

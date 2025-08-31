@@ -68,45 +68,52 @@ class ProductList extends StatelessWidget {
                         style: const TextStyle(color: Colors.black54),
                       ),
                     )
+                    // --- CORREÇÃO APLICADA AQUI ---
+                    // Adicionamos um SingleChildScrollView horizontal ao redor da tabela
                     : SingleChildScrollView(
-                      child: DataTable(
-                        columns: const [
-                          DataColumn(label: Text('Item')),
-                          DataColumn(label: Text('Marca')),
-                          DataColumn(label: Text('Categoria')),
-                          DataColumn(label: Text('Preço')),
-                          DataColumn(label: Text('Qtd. Estoque')),
-                          DataColumn(label: Text('Validade')),
-                        ],
-                        rows:
-                            products.map<DataRow>((product) {
-                              return DataRow(
-                                selected: selectedProductId == product['id'],
-                                onSelectChanged: (isSelected) {
-                                  onSelectionChanged(product, isSelected);
-                                },
-                                cells: [
-                                  DataCell(Text(product['item'] ?? 'N/A')),
-                                  DataCell(Text(product['brand'] ?? 'N/A')),
-                                  DataCell(Text(product['category'] ?? 'N/A')),
-                                  DataCell(
-                                    Text(
-                                      'R\$ ${product['sale_value']?.toStringAsFixed(2) ?? 'N/A'}',
+                      scrollDirection: Axis.horizontal,
+                      child: SingleChildScrollView(
+                        child: DataTable(
+                          columns: const [
+                            DataColumn(label: Text('Item')),
+                            DataColumn(label: Text('Marca')),
+                            DataColumn(label: Text('Categoria')),
+                            DataColumn(label: Text('Preço')),
+                            DataColumn(label: Text('Qtd. Estoque')),
+                            DataColumn(label: Text('Validade')),
+                          ],
+                          rows:
+                              products.map<DataRow>((product) {
+                                return DataRow(
+                                  selected: selectedProductId == product['id'],
+                                  onSelectChanged: (isSelected) {
+                                    onSelectionChanged(product, isSelected);
+                                  },
+                                  cells: [
+                                    DataCell(Text(product['item'] ?? 'N/A')),
+                                    DataCell(Text(product['brand'] ?? 'N/A')),
+                                    DataCell(
+                                      Text(product['category'] ?? 'N/A'),
                                     ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      product['quantity_in_stock']
-                                              ?.toString() ??
-                                          '0',
+                                    DataCell(
+                                      Text(
+                                        'R\$ ${product['sale_value']?.toStringAsFixed(2) ?? 'N/A'}',
+                                      ),
                                     ),
-                                  ),
-                                  DataCell(
-                                    Text(product['expiration_date'] ?? 'N/A'),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
+                                    DataCell(
+                                      Text(
+                                        product['quantity_in_stock']
+                                                ?.toString() ??
+                                            '0',
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(product['expiration_date'] ?? 'N/A'),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                        ),
                       ),
                     ),
           ),

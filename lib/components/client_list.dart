@@ -82,7 +82,7 @@ class ClientList extends StatelessWidget {
                                   Set<WidgetState> states,
                                 ) {
                                   if (isSelected) {
-                                    return Colors.blueGrey.withOpacity(0.3);
+                                    return Colors.blueGrey.withAlpha(200);
                                   }
                                   return null;
                                 }),
